@@ -67,7 +67,7 @@ public:
 		EditDefaultsOnly,
 		BlueprintReadOnly,
 		Category = "SingularisInteraction|引力奇点交互控件|引用",
-		meta = (DisplayName = "控件组件引用", UseComponentPicker, AllowedClasses = "/Script/Engine.WidgetComponent")
+		meta = (DisplayName = "控件组件引用", UseComponentPicker, AllowedClasses = "/Script/UMG.WidgetComponent")
 
 	)
 	FComponentReference WidgetComponentReference{};
