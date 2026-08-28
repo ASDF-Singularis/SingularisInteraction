@@ -80,7 +80,7 @@ void USingularisInteractionWidgetComponent::ProxyWidgetComponent()
 	InteractionWidget = CreateWidget<USingularisInteractionWidget>(GetWorld(), InteractionWidgetClass);
 	WidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
 	WidgetComponent->SetWidget(InteractionWidget);
-	WidgetComponent->SetCollisionResponseToChannel(ECC_INTERACTION, ECR_Ignore);
+	WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void USingularisInteractionWidgetComponent::ProxyPromptVolume()
