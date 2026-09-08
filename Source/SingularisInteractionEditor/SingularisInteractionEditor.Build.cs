@@ -15,10 +15,10 @@ public class SingularisInteractionEditor : ModuleRules
 				"Engine",
 				"Projects",
 
+				"SingularisInteraction",
+
 				"UMG",
 				"UMGEditor",
-
-				"SingularisInteraction",
 
 				"UnrealEd",
 				"AssetTools",
