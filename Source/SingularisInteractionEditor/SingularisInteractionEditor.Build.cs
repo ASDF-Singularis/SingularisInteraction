@@ -13,11 +13,13 @@ public class SingularisInteractionEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-
-				"SingularisInteraction",
+				"Projects",
 
 				"UMG",
 				"UMGEditor",
+
+				"SingularisInteraction",
+
 				"UnrealEd",
 				"AssetTools",
 				"ContentBrowser"
