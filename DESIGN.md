@@ -1,7 +1,7 @@
 # SingularisInteraction 架构设计文档 (Architecture Document)
 
 > [!IMPORTANT]
-> SingularisInteraction 是 Singularis 系列的标准参考实现，以系列标准模式**逻辑 (Logic) — 表现 (Presentation/UI) — 控制 (Control/Input)** 组织全部代码，在 Unreal Engine 5 中把交互流程拆解为**目标锁定 (Target Lock-on)**、**输入触发 (Input Trigger)**、**服务器权威执行 (Server-Authoritative Execution)** 与**表现驱动 (Presentation Driving)** 四个相互独立、可单独替换的扩展点。
+> SingularisInteraction 是 Singularis 系列的标准参考实现，以系列标准模式 **逻辑 (Logic) — 表现 (Presentation) — 控制 (Control)** 组织全部代码，在 Unreal Engine 5 中把交互流程拆解为**目标锁定 (Target Lock-on)**、**输入触发 (Input Trigger)**、**服务器权威执行 (Server-Authoritative Execution)** 与**表现驱动 (Presentation Driving)** 四个相互独立、可单独替换的扩展点。
 
 ## 概述 (Overview)
 
