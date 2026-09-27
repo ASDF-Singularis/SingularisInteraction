@@ -1,11 +1,11 @@
-/* ====================================================================== *
- * SingularisInteractorComponentType.h                                    *
+﻿/* ====================================================================== *
+ * SingularisInteractionMappingSubsystem.cpp                              *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/07/25 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,37 +28,55 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#pragma once
+#include "Subsystems/SingularisInteractionSubsystem.h"
 
-#include <CoreMinimal.h>
-#include <GameplayTagContainer.h>
+#include <Components/PrimitiveComponent.h>
 
-#include "SingularisInteractorComponentType.generated.h"
+#include "Components/SingularisInteractionComponent.h"
 
-class UInputAction;
+USingularisInteractionSubsystem::USingularisInteractionSubsystem() {}
 
-/**
- * 引力奇点交互者输入。
- *
- * 将增强输入动作映射到交互策略标签。
- */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractorInput
+void USingularisInteractionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	GENERATED_BODY()
+	Super::Initialize(Collection);
+}
 
-	/** 输入动作 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UInputAction* InputAction = nullptr;
+void USingularisInteractionSubsystem::Deinitialize()
+{
+	Super::Deinitialize();
+}
 
-	/** 输入动作触发的交互策略标签 */
-	UPROPERTY(
-		EditAnywhere,
-		BlueprintReadWrite,
-		meta = (
-			Categories = "Singularis.Interaction.Strategy",
-			ForceSelection = "true"
-		)
-	)
-	FGameplayTag StrategyTag{};
-};
+void USingularisInteractionSubsystem::RegisterMapping(
+	UPrimitiveComponent* PrimitiveComponent,
+	USingularisInteractionComponent* InteractionComponent
+)
+{
+	// 1) 空指针守卫
+	if (!IsValid(PrimitiveComponent) || !IsValid(InteractionComponent)) return;
+
+	// 2) 登记映射，重复登记时覆盖既有映射
+	Map.Add(PrimitiveComponent, InteractionComponent);
+}
+
+void USingularisInteractionSubsystem::UnregisterMapping(UPrimitiveComponent* PrimitiveComponent)
+{
+	// 1) 空指针守卫
+	if (!IsValid(PrimitiveComponent)) return;
+
+	// 2) 移除映射，未登记时幂等返回
+	Map.Remove(PrimitiveComponent);
+}
+
+USingularisInteractionComponent* USingularisInteractionSubsystem::MappingComponent(
+	UPrimitiveComponent* PrimitiveComponent
+)
+{
+	// 1) 空指针守卫
+	if (!IsValid(PrimitiveComponent)) return nullptr;
+
+	// 2) 哈希查找 → 弱引用有效性检查 → 解引用
+	if (const TWeakObjectPtr<USingularisInteractionComponent>* Found = Map.Find(PrimitiveComponent))
+		if (Found->IsValid()) return Found->Get();
+
+	return nullptr;
+}

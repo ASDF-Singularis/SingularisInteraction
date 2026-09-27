@@ -75,7 +75,7 @@ public:
 	}
 
 	virtual FColor GetTypeColor() const override { return FColor(44, 89, 180); }
-	
+
 	virtual UClass* GetSupportedClass() const override { return USingularisInteractionWidget::StaticClass(); }
 
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override

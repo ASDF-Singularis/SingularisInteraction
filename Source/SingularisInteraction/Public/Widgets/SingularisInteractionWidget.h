@@ -33,58 +33,37 @@
 #include <CoreMinimal.h>
 #include <Blueprint/UserWidget.h>
 
+#include "Interfaces/SingularisInteractionViewInterface.h"
 #include "SingularisInteractionWidget.generated.h"
 
 /**
- * 引力奇点交互控件
+ * 引力奇点交互控件。
+ *
+ * 默认交互视图：实现 ISingularisInteractionViewInterface，框架（USingularisInteractionWidgetComponent）
+ * 经接口推送交互状态与事件。用户在蓝图或 C++ 子类中覆写 SPI，更新具体控件表现。
  */
-UCLASS(Abstract, Blueprintable)
-class SINGULARISINTERACTION_API USingularisInteractionWidget : public UUserWidget
+UCLASS(Blueprintable)
+class SINGULARISINTERACTION_API USingularisInteractionWidget : public UUserWidget,
+                                                               public ISingularisInteractionViewInterface
 {
 	GENERATED_BODY()
 
 public:
-#pragma region SPI
+	/** 交互状态全量刷新：启用与悬浮。 */
+	virtual void OnRefresh_Implementation(bool bEnabled, bool bHovered) override;
 
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互|SPI",
-		meta = (DisplayName = "Trigger")
-	)
-	void Trigger();
+	/** 交互触发。 */
+	virtual void OnTrigger_Implementation() override;
 
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互|SPI",
-		meta = (DisplayName = "Hover")
-	)
-	void Hover();
+	/** 交互悬浮。 */
+	virtual void OnHover_Implementation() override;
 
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互|SPI",
-		meta = (DisplayName = "Unhover")
-	)
-	void Unhover();
+	/** 交互未悬浮。 */
+	virtual void OnUnhover_Implementation() override;
 
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互|SPI",
-		meta = (DisplayName = "EnterRange")
-	)
-	void EnterRange();
+	/** 进入交互提示范围。 */
+	virtual void OnEnterRange_Implementation() override;
 
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互|SPI",
-		meta = (DisplayName = "ExitRange")
-	)
-	void ExitRange();
-
-#pragma endregion
+	/** 离开交互提示范围。 */
+	virtual void OnExitRange_Implementation() override;
 };

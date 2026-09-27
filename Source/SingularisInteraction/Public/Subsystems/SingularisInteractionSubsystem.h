@@ -33,42 +33,46 @@
 #include <CoreMinimal.h>
 #include <Subsystems/WorldSubsystem.h>
 
-#include "SingularisInteractionMappingSubsystem.generated.h"
+#include "SingularisInteractionSubsystem.generated.h"
 
 class USingularisInteractionComponent;
 
-UCLASS(NotBlueprintable, BlueprintType)
-class SINGULARISINTERACTION_API USingularisInteractionMappingSubsystem : public UWorldSubsystem
+/**
+ * 引力奇点交互子系统。
+ *
+ * 世界级交互映射表：登记可交互碰撞组件与其交互组件的对应关系，
+ * 供查询器命中几何体后反查承载交互语义的组件。
+ */
+UCLASS(
+	NotBlueprintable,
+	BlueprintType,
+	ClassGroup = ("Singularis"),
+	meta = (BlueprintSpawnableComponent, DisplayName = "引力奇点交互子系统")
+)
+class SINGULARISINTERACTION_API USingularisInteractionSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
-#pragma region Internal Variable
-
+	/** 碰撞组件到交互组件的弱引用映射 */
 	TMap<TWeakObjectPtr<UPrimitiveComponent>, TWeakObjectPtr<USingularisInteractionComponent>> Map{};
 
-#pragma endregion
-
 public:
-#pragma region Constructors
-
-	USingularisInteractionMappingSubsystem();
-
-#pragma endregion
-
-#pragma region Subsystem Interface
+	USingularisInteractionSubsystem();
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-#pragma endregion
-
-
-#pragma region API
-
-
+	/**
+	 * 登记碰撞组件与交互组件的映射关系。
+	 *
+	 * 重复登记同一碰撞组件时覆盖既有映射。
+	 *
+	 * @param PrimitiveComponent 可交互的碰撞组件。
+	 * @param InteractionComponent 承载交互语义的交互组件。
+	 */
 	UFUNCTION(
 		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互子系统|API",
+		Category = "引力奇点交互子系统",
 		meta = (DisplayName = "注册映射")
 	)
 	void RegisterMapping(
@@ -76,19 +80,28 @@ public:
 		USingularisInteractionComponent* InteractionComponent
 	);
 
+	/**
+	 * 注销碰撞组件的映射关系。
+	 *
+	 * @param PrimitiveComponent 待注销的碰撞组件。
+	 */
 	UFUNCTION(
 		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互子系统|API",
+		Category = "引力奇点交互子系统",
 		meta = (DisplayName = "注销映射")
 	)
 	void UnregisterMapping(UPrimitiveComponent* PrimitiveComponent);
 
+	/**
+	 * 反查碰撞组件登记的交互组件。
+	 *
+	 * @param PrimitiveComponent 命中的碰撞组件。
+	 * @return 已登记的交互组件；未登记或弱引用失效时返回 nullptr。
+	 */
 	UFUNCTION(
 		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互子系统|API",
+		Category = "引力奇点交互子系统",
 		meta = (DisplayName = "映射组件")
 	)
 	USingularisInteractionComponent* MappingComponent(UPrimitiveComponent* PrimitiveComponent);
-
-#pragma endregion
 };

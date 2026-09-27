@@ -40,16 +40,16 @@ class IAssetTools;
 class FSingularisInteractionEditorModule : public IModuleInterface
 {
 public:
-    /** IModuleInterface implementation */
-    virtual void StartupModule() override;
-    virtual void ShutdownModule() override;
+	/** IModuleInterface implementation */
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
 
 private:
-    /** * 关键点：缓存所有注册的资产行为指针。
-     * 如果不保存它们，ShutdownModule 时就无法注销，会导致内存泄漏或 Crash。
-     */
-    TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions{};
+	/** * 关键点：缓存所有注册的资产行为指针。
+	 * 如果不保存它们，ShutdownModule 时就无法注销，会导致内存泄漏或 Crash。
+	 */
+	TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions{};
 
-    /** 辅助函数：简化注册流程 */
-    void RegisterAssetTypeAction(IAssetTools& AssetTools, const TSharedRef<IAssetTypeActions>& Action);
+	/** 辅助函数：简化注册流程 */
+	void RegisterAssetTypeAction(IAssetTools& AssetTools, const TSharedRef<IAssetTypeActions>& Action);
 };

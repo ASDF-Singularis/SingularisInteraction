@@ -36,7 +36,9 @@
 #include "SingularisInteractionSettings.generated.h"
 
 /**
- * SingularisInteraction Settings
+ * 引力奇点交互设置。
+ *
+ * 插件级项目设置入口，聚合于项目设置的 Singularis 分类下。
  */
 UCLASS(Config = SingularisInteraction, DefaultConfig)
 class SINGULARISINTERACTION_API USingularisInteractionSettings : public UDeveloperSettings

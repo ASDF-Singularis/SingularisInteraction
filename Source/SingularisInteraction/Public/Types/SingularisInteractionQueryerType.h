@@ -38,45 +38,62 @@
 #include "SingularisInteractionQueryerType.generated.h"
 
 /**
- * 引力奇点交互查询器参数
+ * 引力奇点交互查询器参数。
  */
 USTRUCT(BlueprintType)
 struct SINGULARISINTERACTION_API FSingularisInteractionQueryerParams
 {
 	GENERATED_BODY()
 
+	/** 视线起点（世界坐标） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector ViewLoc{};
 
+	/** 视线朝向 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator ViewRot{};
 
+	/** 需忽略的 Actor，通常为发起查询的玩家 Pawn */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* IgnoredActor = nullptr;
 };
 
 /**
- * 引力奇点交互查询器结果
+ * 引力奇点交互查询器结果。
  */
 USTRUCT(BlueprintType)
 struct SINGULARISINTERACTION_API FSingularisInteractionQueryerResult
 {
 	GENERATED_BODY()
 
+	/** 命中的 Actor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* InteractionActor = nullptr;
 
+	/** 命中 Actor 上登记的交互组件 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	USingularisInteractionComponent* InteractionComponent = nullptr;
 
+	/** 命中点（世界坐标） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector_NetQuantize ImpactPoint{};
 
+	/**
+	 * 结果是否指向有效的交互目标。
+	 *
+	 * @return Actor 与交互组件均有效时返回 true。
+	 */
 	bool IsInteractionValid() const
 	{
 		return IsValid(InteractionActor) && IsValid(InteractionComponent);
 	}
 
+	/**
+	 * 比较两个查询结果是否指向同一交互目标。
+	 *
+	 * @param Other 待比较的查询结果。
+	 * @return 交互目标一致时返回 true。
+	 */
 	bool operator==(const FSingularisInteractionQueryerResult& Other) const
 	{
 		return InteractionActor == Other.InteractionActor &&

@@ -39,28 +39,36 @@
 class USingularisInteractionComponent;
 
 /**
- * 引力奇点交互策略上下文
+ * 引力奇点交互策略上下文。
+ *
+ * 交互触发时由交互组件组装，描述发起者、承载者、目标与本次输入。
  */
 USTRUCT(BlueprintType)
 struct SINGULARISINTERACTION_API FSingularisInteractionStrategyContext
 {
 	GENERATED_BODY()
 
+	/** 控制器 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AController* Controller = nullptr;
 
+	/** 触发者 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	APawn* Instigator = nullptr;
 
+	/** 承载者 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* Avatar = nullptr;
 
+	/** 目标 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<AActor> Target = nullptr;
 
+	/** 交互组件 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	USingularisInteractionComponent* InteractionComponent = nullptr;
 
+	/** 输入操作值 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FInputActionValue InputValue{};
 };

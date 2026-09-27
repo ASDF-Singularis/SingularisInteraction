@@ -36,7 +36,7 @@
 
 #include "Objects/SingularisInteractionBehaviorStrategy.h"
 #include "Objects/SingularisInteractionStrategy.h"
-#include "Subsystems/SingularisInteractionMappingSubsystem.h"
+#include "Subsystems/SingularisInteractionSubsystem.h"
 #include "Types/SingularisInteractionBehaviorStrategyType.h"
 #include "Types/SingularisInteractionComponentType.h"
 #include "Types/SingularisInteractionStrategyType.h"
@@ -58,13 +58,15 @@ void USingularisInteractionComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 1) 登记策略子对象以参与复制
 	RegisterInteractionSubObjects();
 
+	// 2) 在映射子系统登记交互目标组件
 	const UWorld* World = GetWorld();
 	if (!IsValid(World)) return;
 
-	USingularisInteractionMappingSubsystem* MappingSubsystem =
-		World->GetSubsystem<USingularisInteractionMappingSubsystem>();
+	USingularisInteractionSubsystem* MappingSubsystem =
+		World->GetSubsystem<USingularisInteractionSubsystem>();
 	if (!IsValid(MappingSubsystem)) return;
 
 	for (auto Reference : TargetComponentReferences)
@@ -78,14 +80,17 @@ void USingularisInteractionComponent::BeginPlay()
 
 void USingularisInteractionComponent::SetEnabled(const bool IsEnabled)
 {
+	// 1) 幂等检查，状态未变更时直接返回
 	if (bIsEnabled == IsEnabled) return;
 	bIsEnabled = IsEnabled;
 
+	// 2) 广播状态变更事件
 	if (IsEnabled)
 		OnInteractionEnableEvent.Broadcast();
 	else
 		OnInteractionDisableEvent.Broadcast();
 
+	// 3) 驱动行为策略执行副作用
 	FSingularisInteractionBehaviorStrategyContext Context;
 	Context.InteractionActor = GetOwner();
 	Context.InteractionComponent = this;
@@ -101,15 +106,17 @@ void USingularisInteractionComponent::SetEnabled(const bool IsEnabled)
 
 void USingularisInteractionComponent::SetHovered(const bool IsHovered)
 {
-	// 幂等
+	// 1) 幂等检查，状态未变更时直接返回
 	if (bIsHovered == IsHovered) return;
 	bIsHovered = IsHovered;
 
+	// 2) 广播状态变更事件
 	if (IsHovered)
 		OnInteractionHoverEvent.Broadcast();
 	else
 		OnInteractionUnhoverEvent.Broadcast();
 
+	// 3) 驱动行为策略执行副作用
 	FSingularisInteractionBehaviorStrategyContext Context;
 	Context.InteractionActor = GetOwner();
 	Context.InteractionComponent = this;
@@ -144,15 +151,21 @@ void USingularisInteractionComponent::TryInteraction(
 
 	// 2) 层级匹配
 	for (const auto& [Tag, Entry] : InteractionStrategyPipelineMapping)
+	{
 		if (Tag.MatchesTag(StrategyTag))
+		{
 			for (const auto& StrategyPipeline : Entry.Strategies)
 				StrategyPipeline.Strategy->Execute(Context);
+		}
+	}
 }
 
 void USingularisInteractionComponent::RegisterInteractionSubObjects()
 {
+	// 1) 服务器权威检查
 	if (!GetOwner() || !GetOwner()->HasAuthority()) return;
 
+	// 2) 登记策略管线子对象
 	for (auto& [Tag, Pipeline] : InteractionStrategyPipelineMapping)
 	{
 		for (const auto& Entry : Pipeline.Strategies)
@@ -163,6 +176,7 @@ void USingularisInteractionComponent::RegisterInteractionSubObjects()
 		}
 	}
 
+	// 3) 登记行为策略子对象
 	for (const auto& Entry : InteractionBehaviorStrategies)
 	{
 		if (!IsValid(Entry.BehaviorStrategy)) continue;

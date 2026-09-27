@@ -59,4 +59,3 @@ FText USingularisInteractionSettings::GetSectionDescription() const
 }
 
 #endif
-

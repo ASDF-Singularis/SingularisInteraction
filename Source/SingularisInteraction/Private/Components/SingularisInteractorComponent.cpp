@@ -71,12 +71,19 @@ void USingularisInteractorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	checkf(GetOwner()->IsA<APlayerController>(), TEXT("SingularisInteractorComponent: Owner is not PlayerController"));
+	checkf(
+		GetOwner()->IsA<APlayerController>(),
+		TEXT("SingularisInteractorComponent: Owner is not PlayerController")
+	);
 
+	// 1) 缓存拥有者玩家控制器
 	OwnerPlayerController = Cast<APlayerController>(GetOwner());
 
-	BindInputAction();
-	RefreshInputMappingContext();
+	// 2) 绑定交互者输入集
+	BindInput();
+
+	// 3) 刷新输入映射上下文
+	RefreshInput();
 }
 
 void USingularisInteractorComponent::TickComponent(
@@ -121,7 +128,7 @@ void USingularisInteractorComponent::Server_RequestInteraction_Implementation(
 	);
 }
 
-void USingularisInteractorComponent::BindInputAction()
+void USingularisInteractorComponent::BindInput()
 {
 	// 1) 安全性检查：仅在拥有本地控制权时绑定输入
 	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
@@ -146,7 +153,7 @@ void USingularisInteractorComponent::BindInputAction()
 	}
 }
 
-void USingularisInteractorComponent::RefreshInputMappingContext() const
+void USingularisInteractorComponent::RefreshInput() const
 {
 	// 1) 基础检查
 	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
@@ -158,13 +165,9 @@ void USingularisInteractorComponent::RefreshInputMappingContext() const
 
 	// 2) 根据当前交互状态动态添加或移除映射上下文
 	if (CurrentQueryerResult.IsInteractionValid())
-	{
 		Subsystem->AddMappingContext(InputMappingContext, InputPriority);
-	}
 	else
-	{
 		Subsystem->RemoveMappingContext(InputMappingContext);
-	}
 }
 
 void USingularisInteractorComponent::Query()
@@ -188,29 +191,47 @@ void USingularisInteractorComponent::Query()
 	const bool bIsInteractionHit = InteractionQueryer->Query(QueryerResult, QueryerParams);
 
 	// 4) 使用访问器模式更新当前交互状态
-	SetCurrentQueryerResult(QueryerResult);
+	SetQueryerResult(QueryerResult);
 }
 
-void USingularisInteractorComponent::SetCurrentQueryerResult(
+void USingularisInteractorComponent::SetQueryerResult(
 	const FSingularisInteractionQueryerResult& QueryerResult
 )
 {
-	// 1) 幂等性检查，若状态未变更则直接返回
+	// 1) 本地玩家检查
+	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
+
+	// 2) 幂等性检查，若状态未变更则直接返回
 	if (CurrentQueryerResult == QueryerResult) return;
 
-	// 2) 清理旧状态：取消旧目标的悬停状态
-	if (CurrentQueryerResult.IsInteractionValid())
-		CurrentQueryerResult.InteractionComponent->SetHovered(false);
-
-	// 3) 赋予新状态
+	// 3) 捕获旧状态后写入新状态
+	const FSingularisInteractionQueryerResult OldQueryerResult = CurrentQueryerResult;
 	CurrentQueryerResult = QueryerResult;
 
-	// 4) 设置新状态：激活新目标的悬停状态
-	if (QueryerResult.IsInteractionValid())
-		QueryerResult.InteractionComponent->SetHovered(true);
+	// 4) 响应式编程：应用查询结果副作用
+	ApplyQueryerResult(OldQueryerResult);
 
-	// 5) 根据最新状态刷新输入映射上下文
-	RefreshInputMappingContext();
+	// 5) 广播交互目标变更
+	OnInteractionTargetChangedEvent.Broadcast(
+		OldQueryerResult.InteractionComponent,
+		CurrentQueryerResult.InteractionComponent
+	);
+}
+
+void USingularisInteractorComponent::ApplyQueryerResult(
+	const FSingularisInteractionQueryerResult& OldQueryerResult
+) const
+{
+	// 1) 清理旧状态：取消旧目标的悬停状态
+	if (OldQueryerResult.IsInteractionValid())
+		OldQueryerResult.InteractionComponent->SetHovered(false);
+
+	// 2) 设置新状态：激活新目标的悬停状态
+	if (CurrentQueryerResult.IsInteractionValid())
+		CurrentQueryerResult.InteractionComponent->SetHovered(true);
+
+	// 3) 根据最新状态刷新输入映射上下文
+	RefreshInput();
 }
 
 // ReSharper disable CppMemberFunctionMayBeConst
@@ -228,7 +249,10 @@ void USingularisInteractorComponent::HandleInteractionAction(
 	USingularisInteractionComponent* TargetInteractionComponent = CurrentQueryerResult.InteractionComponent;
 	if (!IsValid(TargetInteractionComponent)) return;
 
-	// 3) 核心变更：由本地调用改为向服务器发起 RPC（过桥）
+	// 3) 广播交互触发
+	OnInteractionTriggeredEvent.Broadcast(TargetInteractionComponent, StrategyTag);
+
+	// 4) 向服务器发起交互 RPC（过桥）
 	Server_RequestInteraction(TargetInteractionComponent, StrategyTag, ActionValue);
 }
 

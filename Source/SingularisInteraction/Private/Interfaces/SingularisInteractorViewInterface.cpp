@@ -1,11 +1,11 @@
-/* ====================================================================== *
- * SingularisInteractorComponentType.h                                    *
+﻿/* ====================================================================== *
+ * SingularisInteractorViewInterface.cpp                                  *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/09/27 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,37 +28,4 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#pragma once
-
-#include <CoreMinimal.h>
-#include <GameplayTagContainer.h>
-
-#include "SingularisInteractorComponentType.generated.h"
-
-class UInputAction;
-
-/**
- * 引力奇点交互者输入。
- *
- * 将增强输入动作映射到交互策略标签。
- */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractorInput
-{
-	GENERATED_BODY()
-
-	/** 输入动作 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UInputAction* InputAction = nullptr;
-
-	/** 输入动作触发的交互策略标签 */
-	UPROPERTY(
-		EditAnywhere,
-		BlueprintReadWrite,
-		meta = (
-			Categories = "Singularis.Interaction.Strategy",
-			ForceSelection = "true"
-		)
-	)
-	FGameplayTag StrategyTag{};
-};
+#include "Interfaces/SingularisInteractorViewInterface.h"

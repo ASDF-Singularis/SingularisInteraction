@@ -1,5 +1,7 @@
 #include "SingularisInteraction.h"
 
+DEFINE_LOG_CATEGORY(LogSingularisInteraction);
+
 #define LOCTEXT_NAMESPACE "FSingularisInteractionModule"
 
 void FSingularisInteractionModule::StartupModule() {}

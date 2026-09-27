@@ -53,12 +53,12 @@ UObject* USingularisInteractionQueryerFactory::FactoryCreateNew(
 	// 核心逻辑：创建蓝图，并指定 ParentClass 为你的 C++ 抽象类
 	// UMyAbstractClass 是你想要继承的那个 C++ 类
 	return FKismetEditorUtilities::CreateBlueprint(
-		USingularisInteractionQueryer::StaticClass(), 
-		InParent, 
-		InName, 
-		BPTYPE_Normal, 
-		UBlueprint::StaticClass(), 
-		UBlueprintGeneratedClass::StaticClass(), 
+		USingularisInteractionQueryer::StaticClass(),
+		InParent,
+		InName,
+		BPTYPE_Normal,
+		UBlueprint::StaticClass(),
+		UBlueprintGeneratedClass::StaticClass(),
 		NAME_None
 	);
 }

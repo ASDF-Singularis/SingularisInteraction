@@ -33,6 +33,14 @@
 #include <CoreMinimal.h>
 #include <NativeGameplayTags.h>
 
+/**
+ * SingularisInteraction 插件使用的原生 GameplayTag 声明。
+ *
+ * 标签层级：
+ *   Singularis.Interaction
+ *   Singularis.Interaction.Strategy
+ *   Singularis.Interaction.Strategy.Default
+ */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Strategy);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Strategy_Default);

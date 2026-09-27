@@ -37,6 +37,7 @@
 #include "Factories/SingularisInteractionQueryerFactory.h"
 #include "Factories/SingularisInteractionStrategyFactory.h"
 #include "Factories/SingularisInteractionWidgetFactory.h"
+#include "Factories/SingularisInteractorWidgetFactory.h"
 
 // 定义 LOCTEXT_NAMESPACE，用于本地化支持
 #define LOCTEXT_NAMESPACE "FSingularisInteractionEditorModule"
@@ -65,7 +66,7 @@ void FSingularisInteractionEditorModule::StartupModule()
 		AssetTools,
 		MakeShareable(new FAssetTypeActions_SingularisInteractionStrategy(SingularisPluginCategory))
 	);
-	
+
 	RegisterAssetTypeAction(
 		AssetTools,
 		MakeShareable(new FAssetTypeActions_SingularisInteractionBehaviorStrategy(SingularisPluginCategory))
@@ -74,6 +75,11 @@ void FSingularisInteractionEditorModule::StartupModule()
 	RegisterAssetTypeAction(
 		AssetTools,
 		MakeShareable(new FAssetTypeActions_SingularisInteractionWidget(SingularisPluginCategory))
+	);
+
+	RegisterAssetTypeAction(
+		AssetTools,
+		MakeShareable(new FAssetTypeActions_SingularisInteractorWidget(SingularisPluginCategory))
 	);
 
 	// 示例：如果有第二个资产
@@ -90,9 +96,7 @@ void FSingularisInteractionEditorModule::ShutdownModule()
 
 		// 2. 遍历数组，注销每一个 Action
 		for (auto Action : CreatedAssetTypeActions)
-		{
 			AssetTools.UnregisterAssetTypeActions(Action.ToSharedRef());
-		}
 	}
 
 	// 3. 清空数组，释放智能指针

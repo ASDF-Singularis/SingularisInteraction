@@ -38,16 +38,20 @@ class AActor;
 class USingularisInteractionComponent;
 
 /**
- * 引力奇点交互策略上下文
+ * 引力奇点交互行为策略上下文。
+ *
+ * 行为策略执行时由交互组件组装，描述副作用作用的交互目标。
  */
 USTRUCT(BlueprintType)
 struct SINGULARISINTERACTION_API FSingularisInteractionBehaviorStrategyContext
 {
 	GENERATED_BODY()
 
+	/** 交互目标 Actor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* InteractionActor = nullptr;
 
+	/** 交互目标组件 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	USingularisInteractionComponent* InteractionComponent = nullptr;
 };

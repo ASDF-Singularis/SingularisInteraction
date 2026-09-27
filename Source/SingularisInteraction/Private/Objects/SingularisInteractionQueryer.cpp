@@ -36,7 +36,7 @@
 #include <Engine/World.h>
 
 #include "Components/SingularisInteractionComponent.h"
-#include "Subsystems/SingularisInteractionMappingSubsystem.h"
+#include "Subsystems/SingularisInteractionSubsystem.h"
 
 #define ECC_INTERACTION ECC_GameTraceChannel1
 
@@ -60,6 +60,7 @@ bool USingularisInteractionQueryer::Query_Implementation(
 
 	if (!bHit) return false;
 
+	// 4) 命中校验与结果装配
 	UPrimitiveComponent* PrimitiveComponent = HitResult.GetComponent();
 	if (!IsValid(PrimitiveComponent)) return false;
 
@@ -86,8 +87,8 @@ USingularisInteractionComponent* USingularisInteractionQueryer::FindInteractionC
 	const UWorld* World = Actor->GetWorld();
 	if (!IsValid(World)) return nullptr;
 
-	USingularisInteractionMappingSubsystem* MappingSubsystem =
-		World->GetSubsystem<USingularisInteractionMappingSubsystem>();
+	USingularisInteractionSubsystem* MappingSubsystem =
+		World->GetSubsystem<USingularisInteractionSubsystem>();
 	if (!IsValid(MappingSubsystem)) return nullptr;
 
 	return MappingSubsystem->MappingComponent(PrimitiveComponent);

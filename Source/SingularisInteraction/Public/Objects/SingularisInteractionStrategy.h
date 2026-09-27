@@ -38,7 +38,10 @@
 struct FSingularisInteractionStrategyContext;
 
 /**
- * 引力奇点交互策略
+ * 引力奇点交互策略。
+ *
+ * 交互管线的执行单元，由交互组件按策略标签层级匹配后依次执行。
+ * 子类覆写 CanExecute 判定执行前提，覆写 Execute 实现交互副作用。
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)
 class SINGULARISINTERACTION_API USingularisInteractionStrategy : public UObject
@@ -59,18 +62,29 @@ public:
 
 #pragma region SPI
 
+	/**
+	 * 判定本策略在当前上下文中是否允许执行。
+	 *
+	 * @param Context 交互策略上下文。
+	 * @return 允许执行时返回 true。
+	 */
 	UFUNCTION(
 		BlueprintNativeEvent,
 		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互策略|SPI",
+		Category = "引力奇点交互策略|SPI",
 		meta = (DisplayName = "CanExecute")
 	)
 	bool CanExecute(const FSingularisInteractionStrategyContext& Context) const;
 
+	/**
+	 * 执行本策略。
+	 *
+	 * @param Context 交互策略上下文。
+	 */
 	UFUNCTION(
 		BlueprintNativeEvent,
 		BlueprintCallable,
-		Category = "SingularisInteraction|引力奇点交互策略|SPI",
+		Category = "引力奇点交互策略|SPI",
 		meta = (DisplayName = "Execute")
 	)
 	void Execute(const FSingularisInteractionStrategyContext& Context);

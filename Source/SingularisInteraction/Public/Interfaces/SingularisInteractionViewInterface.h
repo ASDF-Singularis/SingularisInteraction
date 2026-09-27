@@ -1,11 +1,11 @@
-/* ====================================================================== *
- * SingularisInteractionBehaviorStrategy.h                                *
+﻿/* ====================================================================== *
+ * SingularisInteractionViewInterface.h                                   *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/30 | Author: TrifingZW                                *
+ * Created: 2026/09/27 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -31,71 +31,82 @@
 #pragma once
 
 #include <CoreMinimal.h>
-#include <UObject/Object.h>
+#include <UObject/Interface.h>
 
-#include "Types/SingularisInteractionBehaviorStrategyType.h"
-#include "SingularisInteractionBehaviorStrategy.generated.h"
+#include "SingularisInteractionViewInterface.generated.h"
 
 /**
- * 引力奇点交互行为策略。
+ * 引力奇点交互视图接口。
  *
- * 响应交互组件的启用与悬浮状态变化执行副作用，由交互组件以子对象形式持有并参与复制。
- * 子类覆写 SPI 实现具体表现；行为策略不参与交互触发管线。
+ * 交互视图契约：实现者接收交互组件的全量刷新与增量事件，由交互控件组件经 Execute_ 调用。
+ * 实现者不限于控件——任意 UObject 实现本接口即可接入驱动。
  */
-UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)
-class SINGULARISINTERACTION_API USingularisInteractionBehaviorStrategy : public UObject
+UINTERFACE(Blueprintable, BlueprintType)
+class USingularisInteractionViewInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class SINGULARISINTERACTION_API ISingularisInteractionViewInterface
 {
 	GENERATED_BODY()
 
 public:
-#pragma region UObject Interface
-
-	virtual UWorld* GetWorld() const override;
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
-
-	virtual bool IsSupportedForNetworking() const override;
-	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
-	virtual bool CallRemoteFunction(UFunction* Function, void* Parms, FOutParmRec* OutParms, FFrame* Stack) override;
-
-#pragma endregion
-
-#pragma region SPI
-
-	/** 交互启用时执行。 */
+	/**
+	 * 交互状态全量刷新：启用与悬浮。
+	 *
+	 * 由交互控件组件在绑定完成后主动调用，消除错过事件导致的空白期。
+	 */
 	UFUNCTION(
 		BlueprintNativeEvent,
 		BlueprintCallable,
-		Category = "引力奇点交互行为策略|SPI",
-		meta = (DisplayName = "Enabled")
+		Category = "引力奇点交互视图接口",
+		meta = (DisplayName = "交互刷新")
 	)
-	void Enabled(const FSingularisInteractionBehaviorStrategyContext& Context);
+	void OnRefresh(bool bEnabled, bool bHovered);
 
-	/** 交互禁用时执行。 */
+	/** 交互触发。 */
 	UFUNCTION(
 		BlueprintNativeEvent,
 		BlueprintCallable,
-		Category = "引力奇点交互行为策略|SPI",
-		meta = (DisplayName = "Disabled")
+		Category = "引力奇点交互视图接口",
+		meta = (DisplayName = "触发")
 	)
-	void Disabled(const FSingularisInteractionBehaviorStrategyContext& Context);
+	void OnTrigger();
 
-	/** 交互悬浮时执行。 */
+	/** 交互悬浮。 */
 	UFUNCTION(
 		BlueprintNativeEvent,
 		BlueprintCallable,
-		Category = "引力奇点交互行为策略|SPI",
-		meta = (DisplayName = "Hovered")
+		Category = "引力奇点交互视图接口",
+		meta = (DisplayName = "悬浮")
 	)
-	void Hovered(const FSingularisInteractionBehaviorStrategyContext& Context);
+	void OnHover();
 
-	/** 交互未悬浮时执行。 */
+	/** 交互未悬浮。 */
 	UFUNCTION(
 		BlueprintNativeEvent,
 		BlueprintCallable,
-		Category = "引力奇点交互行为策略|SPI",
-		meta = (DisplayName = "Unhovered")
+		Category = "引力奇点交互视图接口",
+		meta = (DisplayName = "未悬浮")
 	)
-	void Unhovered(const FSingularisInteractionBehaviorStrategyContext& Context);
+	void OnUnhover();
 
-#pragma endregion
+	/** 进入交互提示范围。 */
+	UFUNCTION(
+		BlueprintNativeEvent,
+		BlueprintCallable,
+		Category = "引力奇点交互视图接口",
+		meta = (DisplayName = "进入范围")
+	)
+	void OnEnterRange();
+
+	/** 离开交互提示范围。 */
+	UFUNCTION(
+		BlueprintNativeEvent,
+		BlueprintCallable,
+		Category = "引力奇点交互视图接口",
+		meta = (DisplayName = "离开范围")
+	)
+	void OnExitRange();
 };

@@ -1,11 +1,11 @@
-/* ====================================================================== *
- * SingularisInteractorComponentType.h                                    *
+﻿/* ====================================================================== *
+ * SingularisInteractorWidget.h                                           *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/09/27 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -31,34 +31,38 @@
 #pragma once
 
 #include <CoreMinimal.h>
-#include <GameplayTagContainer.h>
+#include <Blueprint/UserWidget.h>
 
-#include "SingularisInteractorComponentType.generated.h"
+#include "Interfaces/SingularisInteractorViewInterface.h"
+#include "SingularisInteractorWidget.generated.h"
 
-class UInputAction;
+class USingularisInteractionComponent;
 
 /**
- * 引力奇点交互者输入。
+ * 引力奇点交互者控件。
  *
- * 将增强输入动作映射到交互策略标签。
+ * 默认交互者视图：实现 ISingularisInteractorViewInterface，框架（USingularisInteractorWidgetComponent）
+ * 经接口推送交互者状态与事件。用户在蓝图或 C++ 子类中覆写 SPI，更新具体控件表现。
  */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractorInput
+UCLASS(Blueprintable)
+class SINGULARISINTERACTION_API USingularisInteractorWidget : public UUserWidget,
+                                                              public ISingularisInteractorViewInterface
 {
 	GENERATED_BODY()
 
-	/** 输入动作 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UInputAction* InputAction = nullptr;
+public:
+	/** 交互者状态全量刷新：当前锁定的交互目标。 */
+	virtual void OnRefresh_Implementation(USingularisInteractionComponent* Target) override;
 
-	/** 输入动作触发的交互策略标签 */
-	UPROPERTY(
-		EditAnywhere,
-		BlueprintReadWrite,
-		meta = (
-			Categories = "Singularis.Interaction.Strategy",
-			ForceSelection = "true"
-		)
-	)
-	FGameplayTag StrategyTag{};
+	/** 交互者锁定的目标变更。 */
+	virtual void OnTargetChanged_Implementation(
+		USingularisInteractionComponent* OldTarget,
+		USingularisInteractionComponent* NewTarget
+	) override;
+
+	/** 交互者发起一次交互请求。 */
+	virtual void OnTriggered_Implementation(
+		USingularisInteractionComponent* Target,
+		FGameplayTag StrategyTag
+	) override;
 };

@@ -30,12 +30,14 @@
 
 #include "Widgets/SingularisInteractionWidget.h"
 
-void USingularisInteractionWidget::Trigger_Implementation() {}
+void USingularisInteractionWidget::OnRefresh_Implementation(bool bEnabled, bool bHovered) {}
 
-void USingularisInteractionWidget::Hover_Implementation() {}
+void USingularisInteractionWidget::OnTrigger_Implementation() {}
 
-void USingularisInteractionWidget::Unhover_Implementation() {}
+void USingularisInteractionWidget::OnHover_Implementation() {}
 
-void USingularisInteractionWidget::EnterRange_Implementation() {}
+void USingularisInteractionWidget::OnUnhover_Implementation() {}
 
-void USingularisInteractionWidget::ExitRange_Implementation() {}
+void USingularisInteractionWidget::OnEnterRange_Implementation() {}
+
+void USingularisInteractionWidget::OnExitRange_Implementation() {}

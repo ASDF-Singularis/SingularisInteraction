@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionComponentType.h                                   *
+ * SingularisInteractorWidgetFactory.h                                    *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/23 | Author: TrifingZW                                *
+ * Created: 2026/09/27 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -31,80 +31,75 @@
 #pragma once
 
 #include <CoreMinimal.h>
+#include <AssetTypeActions/AssetTypeActions_Blueprint.h>
+#include <Factories/Factory.h>
 
-#include "SingularisInteractionComponentType.generated.h"
-
-class USingularisInteractionStrategy;
-class USingularisInteractionBehaviorStrategy;
-
-/**
- * 引力奇点交互模式
- */
-UENUM(BlueprintType)
-enum class ESingularisInteractionMode : uint8
-{
-	/** 射线查询 */
-	Ray UMETA(DisplayName = "射线"),
-
-	/** 碰撞查询 */
-	Collision UMETA(DisplayName = "碰撞"),
-};
+#include "Widgets/SingularisInteractorWidget.h"
+#include "SingularisInteractorWidgetFactory.generated.h"
 
 /**
- * 引力奇点交互策略条目
+ * 引力奇点交互者控件工厂。
+ *
+ * 在内容浏览器中创建 USingularisInteractorWidget 的控件蓝图资产。
  */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionStrategyEntry
+UCLASS()
+class SINGULARISINTERACTIONEDITOR_API USingularisInteractorWidgetFactory : public UFactory
 {
 	GENERATED_BODY()
 
-	/** 策略名称，用于编辑器展示 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText StrategyName{};
-
-	/** 策略说明 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText StrategyDescription{};
-
-	/** 策略实例 */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite)
-	USingularisInteractionStrategy* Strategy = nullptr;
+public:
+	USingularisInteractorWidgetFactory();
+	virtual UObject* FactoryCreateNew(
+		UClass* InClass,
+		UObject* InParent,
+		FName InName,
+		EObjectFlags Flags,
+		UObject* Context,
+		FFeedbackContext* Warn
+	) override;
+	virtual bool ShouldShowInNewMenu() const override;
 };
 
 /**
- * 引力奇点交互策略管线：用于包装一组有序的策略
+ * 引力奇点交互者控件资产行为。
  */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionStrategyPipeline
+class FAssetTypeActions_SingularisInteractorWidget : public FAssetTypeActions_Blueprint
 {
-	GENERATED_BODY()
+public:
+	explicit FAssetTypeActions_SingularisInteractorWidget(const EAssetTypeCategories::Type InAssetCategory)
+		: AssetTypeCategory(InAssetCategory) {}
 
-	/** 按数组顺序依次执行的策略集 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (TitleProperty = "StrategyName"))
-	TArray<FSingularisInteractionStrategyEntry> Strategies;
+	virtual FText GetName() const override
+	{
+		return NSLOCTEXT(
+			"SingularisInteractionEditor",
+			"AssetTypeActions_SingularisInteractorWidget",
+			"Singularis Interactor Widget"
+		);
+	}
 
-	/** 是否在策略完成后挂起后续策略 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bSuspend = true;
-};
+	virtual FColor GetTypeColor() const override { return FColor(44, 89, 180); }
 
-/**
- * 引力奇点交互行为策略条目
- */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionBehaviorStrategyEntry
-{
-	GENERATED_BODY()
+	virtual UClass* GetSupportedClass() const override { return USingularisInteractorWidget::StaticClass(); }
 
-	/** 行为策略名称，用于编辑器展示 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText BehaviorStrategyName{};
+	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override
+	{
+		// 这里创建一个工厂实例给编辑器使用
+		USingularisInteractorWidgetFactory* Factory = NewObject<USingularisInteractorWidgetFactory>();
+		return Factory;
+	}
 
-	/** 行为策略说明 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText BehaviorStrategyDescription{};
+	virtual uint32 GetCategories() override { return AssetTypeCategory; }
 
-	/** 行为策略实例 */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite)
-	USingularisInteractionBehaviorStrategy* BehaviorStrategy = nullptr;
+	virtual const TArray<FText>& GetSubMenus() const override
+	{
+		static const TArray SubMenus = {
+			FText::FromString("SingularisInteraction"),
+		};
+
+		return SubMenus;
+	}
+
+private:
+	EAssetTypeCategories::Type AssetTypeCategory;
 };

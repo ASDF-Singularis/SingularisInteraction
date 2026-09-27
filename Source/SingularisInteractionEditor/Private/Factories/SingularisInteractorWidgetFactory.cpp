@@ -1,11 +1,11 @@
-﻿/* ====================================================================== *
- * SingularisInteractionMappingSubsystem.cpp                              *
+/* ====================================================================== *
+ * SingularisInteractorWidgetFactory.cpp                                  *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/07/25 | Author: TrifingZW                                *
+ * Created: 2026/09/27 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,51 +28,43 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#include "Subsystems/SingularisInteractionMappingSubsystem.h"
+#include "Factories/SingularisInteractorWidgetFactory.h"
 
-#include <Components/PrimitiveComponent.h>
+#include <WidgetBlueprint.h>
+#include <Kismet2/KismetEditorUtilities.h>
+#include <Widgets/SingularisInteractorWidget.h>
 
-#include "Components/SingularisInteractionComponent.h"
-
-USingularisInteractionMappingSubsystem::USingularisInteractionMappingSubsystem() {}
-
-void USingularisInteractionMappingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+USingularisInteractorWidgetFactory::USingularisInteractorWidgetFactory()
 {
-	Super::Initialize(Collection);
+	// 关键配置
+	bCreateNew = true; // 允许创建新资产
+	bEditAfterNew = true; // 创建后自动打开编辑器（可选）
+	SupportedClass = USingularisInteractorWidget::StaticClass(); // 关联具体的资产类
 }
 
-void USingularisInteractionMappingSubsystem::Deinitialize()
-{
-	Super::Deinitialize();
-}
-
-void USingularisInteractionMappingSubsystem::RegisterMapping(
-	UPrimitiveComponent* PrimitiveComponent,
-	USingularisInteractionComponent* InteractionComponent
+UObject* USingularisInteractorWidgetFactory::FactoryCreateNew(
+	UClass* InClass,
+	UObject* InParent,
+	const FName InName,
+	const EObjectFlags Flags,
+	UObject* Context,
+	FFeedbackContext* Warn
 )
 {
-	if (!IsValid(PrimitiveComponent) || !IsValid(InteractionComponent)) return;
-	Map.Add(PrimitiveComponent, InteractionComponent);
+	return FKismetEditorUtilities::CreateBlueprint(
+		USingularisInteractorWidget::StaticClass(),
+		InParent,
+		InName,
+		BPTYPE_Normal,
+		UWidgetBlueprint::StaticClass(),
+		// 必须指定为 UWidgetBlueprint
+		UWidgetBlueprintGeneratedClass::StaticClass(),
+		// 必须指定生成的类类型
+		NAME_None
+	);
 }
 
-void USingularisInteractionMappingSubsystem::UnregisterMapping(UPrimitiveComponent* PrimitiveComponent)
+bool USingularisInteractorWidgetFactory::ShouldShowInNewMenu() const
 {
-	if (!IsValid(PrimitiveComponent)) return;
-	Map.Remove(PrimitiveComponent);
-}
-
-USingularisInteractionComponent* USingularisInteractionMappingSubsystem::MappingComponent(
-	UPrimitiveComponent* PrimitiveComponent
-)
-{
-	// 1) 空指针守卫
-	if (!IsValid(PrimitiveComponent)) return nullptr;
-
-	// 2) 哈希查找 → 弱引用有效性检查 → 解引用
-	if (const TWeakObjectPtr<USingularisInteractionComponent>* Found = Map.Find(PrimitiveComponent))
-	{
-		if (Found->IsValid()) return Found->Get();
-	}
-
-	return nullptr;
+	return Super::ShouldShowInNewMenu();
 }
