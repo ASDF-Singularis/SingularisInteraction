@@ -75,6 +75,21 @@ void USingularisInteractorWidgetComponent::BeginPlay()
 	ObserveInteractorComponent();
 }
 
+void USingularisInteractorWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 1) 自动创建路径：屏幕空间控件不随组件销毁自动移除，需显式从视口移除避免残留
+	if (bAutoCreateView)
+	{
+		if (UUserWidget* const CreatedUserWidget = Cast<UUserWidget>(InteractorView.GetObject()))
+			CreatedUserWidget->RemoveFromParent();
+	}
+
+	// 2) 清空引用，事件绑定随组件销毁自动失效
+	InteractorView = nullptr;
+
+	Super::EndPlay(EndPlayReason);
+}
+
 void USingularisInteractorWidgetComponent::SetInteractorView(
 	const TScriptInterface<ISingularisInteractorViewInterface>& NewInteractorView
 )
