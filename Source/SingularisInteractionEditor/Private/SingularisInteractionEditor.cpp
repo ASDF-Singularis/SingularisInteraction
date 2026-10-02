@@ -33,12 +33,13 @@
 #include <AssetToolsModule.h>
 #include <IAssetTools.h>
 
-#include "SingularisInteraction.h"
 #include "Factories/SingularisInteractionBehaviorStrategyFactory.h"
 #include "Factories/SingularisInteractionQueryerFactory.h"
 #include "Factories/SingularisInteractionStrategyFactory.h"
 #include "Factories/SingularisInteractionWidgetFactory.h"
 #include "Factories/SingularisInteractorWidgetFactory.h"
+
+DEFINE_LOG_CATEGORY(LogSingularisInteractionEditor);
 
 #define LOCTEXT_NAMESPACE "FSingularisInteractionEditorModule"
 
@@ -78,7 +79,7 @@ void FSingularisInteractionEditorModule::StartupModule()
 	);
 
 	UE_LOG(
-		LogSingularisInteraction,
+		LogSingularisInteractionEditor,
 		Display,
 		TEXT("StartupModule：编辑器模块初始化完成，已登记 %d 项资产类型行为"),
 		CreatedAssetTypeActions.Num()
@@ -97,7 +98,7 @@ void FSingularisInteractionEditorModule::ShutdownModule()
 	}
 
 	UE_LOG(
-		LogSingularisInteraction,
+		LogSingularisInteractionEditor,
 		Display,
 		TEXT("ShutdownModule：编辑器模块卸载，已反注册 %d 项资产类型行为"),
 		CreatedAssetTypeActions.Num()
@@ -111,7 +112,7 @@ void FSingularisInteractionEditorModule::RegisterAssetTypeAction(
 	const TSharedRef<IAssetTypeActions>& Action
 )
 {
-	// 登记资产行为并留存引用，供卸载时反注册
+	// 1) 登记资产行为并留存引用，供卸载时反注册
 	AssetTools.RegisterAssetTypeActions(Action);
 	CreatedAssetTypeActions.Add(Action);
 }

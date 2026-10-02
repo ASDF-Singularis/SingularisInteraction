@@ -93,6 +93,7 @@ public:
 
 	virtual const TArray<FText>& GetSubMenus() const override
 	{
+		// 1) 将资产收纳至右键菜单的指定子目录中
 		static const TArray SubMenus = {
 			FText::FromString("SingularisInteraction"),
 		};

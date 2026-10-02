@@ -37,6 +37,8 @@
 
 class IAssetTools;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogSingularisInteractionEditor, Log, All);
+
 /**
  * 引力奇点交互编辑器模块。
  *

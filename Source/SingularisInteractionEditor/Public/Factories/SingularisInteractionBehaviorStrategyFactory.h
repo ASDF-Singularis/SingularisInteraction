@@ -84,6 +84,7 @@ public:
 
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override
 	{
+		// 1) 动态实例化工厂对象以接管该资产蓝图的创建流程
 		USingularisInteractionBehaviorStrategyFactory* Factory = NewObject<
 			USingularisInteractionBehaviorStrategyFactory>();
 		return Factory;
@@ -93,6 +94,7 @@ public:
 
 	virtual const TArray<FText>& GetSubMenus() const override
 	{
+		// 1) 将资产收纳至右键菜单的指定子目录中
 		static const TArray SubMenus = {
 			FText::FromString("SingularisInteraction"),
 		};
