@@ -1,5 +1,5 @@
 ﻿/* ====================================================================== *
- * SingularisInteractionMappingSubsystem.cpp                              *
+ * SingularisInteractionSubsystem.cpp                                      *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
@@ -32,6 +32,7 @@
 
 #include <Components/PrimitiveComponent.h>
 
+#include "SingularisInteraction.h"
 #include "Components/SingularisInteractionComponent.h"
 
 USingularisInteractionSubsystem::USingularisInteractionSubsystem() {}
@@ -39,10 +40,27 @@ USingularisInteractionSubsystem::USingularisInteractionSubsystem() {}
 void USingularisInteractionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] Initialize：交互映射子系统初始化完成"),
+		*GetNameSafe(this)
+	);
 }
 
 void USingularisInteractionSubsystem::Deinitialize()
 {
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] Deinitialize：交互映射子系统卸载，注销 %d 条映射"),
+		*GetNameSafe(this),
+		Map.Num()
+	);
+
+	Map.Empty();
+
 	Super::Deinitialize();
 }
 
@@ -52,7 +70,18 @@ void USingularisInteractionSubsystem::RegisterMapping(
 )
 {
 	// 1) 空指针守卫
-	if (!IsValid(PrimitiveComponent) || !IsValid(InteractionComponent)) return;
+	if (!IsValid(PrimitiveComponent) || !IsValid(InteractionComponent))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] RegisterMapping：入参非法（碰撞组件 %s，交互组件 %s）"),
+			*GetNameSafe(this),
+			*GetNameSafe(PrimitiveComponent),
+			*GetNameSafe(InteractionComponent)
+		);
+		return;
+	}
 
 	// 2) 登记映射，重复登记时覆盖既有映射
 	Map.Add(PrimitiveComponent, InteractionComponent);
@@ -61,7 +90,8 @@ void USingularisInteractionSubsystem::RegisterMapping(
 void USingularisInteractionSubsystem::UnregisterMapping(UPrimitiveComponent* PrimitiveComponent)
 {
 	// 1) 空指针守卫
-	if (!IsValid(PrimitiveComponent)) return;
+	if (!IsValid(PrimitiveComponent))
+		return;
 
 	// 2) 移除映射，未登记时幂等返回
 	Map.Remove(PrimitiveComponent);
@@ -72,7 +102,8 @@ USingularisInteractionComponent* USingularisInteractionSubsystem::MappingCompone
 )
 {
 	// 1) 空指针守卫
-	if (!IsValid(PrimitiveComponent)) return nullptr;
+	if (!IsValid(PrimitiveComponent))
+		return nullptr;
 
 	// 2) 哈希查找 → 弱引用有效性检查 → 解引用
 	if (const TWeakObjectPtr<USingularisInteractionComponent>* Found = Map.Find(PrimitiveComponent))

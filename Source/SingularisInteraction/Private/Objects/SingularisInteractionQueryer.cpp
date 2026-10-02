@@ -1,5 +1,5 @@
 /* ====================================================================== *
- * InteractionQueryer.cpp                                                 *
+ * SingularisInteractionQueryer.cpp                                          *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2025 TrifingZW <TrifingZW@gmail.com>           *
@@ -35,6 +35,7 @@
 #include <Engine/HitResult.h>
 #include <Engine/World.h>
 
+#include "SingularisInteraction.h"
 #include "Components/SingularisInteractionComponent.h"
 #include "Subsystems/SingularisInteractionSubsystem.h"
 
@@ -58,17 +59,31 @@ bool USingularisInteractionQueryer::Query_Implementation(
 	FHitResult HitResult;
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_INTERACTION, Params);
 
-	if (!bHit) return false;
+	// 4) 未命中可交互通道直接返回（查询每帧执行，属正常无事发生，不记日志）
+	if (!bHit)
+		return false;
 
-	// 4) 命中校验与结果装配
+	// 5) 命中校验与结果装配
 	UPrimitiveComponent* PrimitiveComponent = HitResult.GetComponent();
-	if (!IsValid(PrimitiveComponent)) return false;
+	if (!IsValid(PrimitiveComponent))
+		return false;
 
 	AActor* Actor = PrimitiveComponent->GetOwner();
-	if (!IsValid(Actor)) return false;
+	if (!IsValid(Actor))
+		return false;
 
 	USingularisInteractionComponent* InteractionComponent = FindInteractionComponent(Actor, PrimitiveComponent);
-	if (!IsValid(InteractionComponent)) return false;
+	if (!IsValid(InteractionComponent))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("Query：命中 Actor %s 的碰撞组件 %s，但未登记交互组件映射"),
+			*GetNameSafe(Actor),
+			*GetNameSafe(PrimitiveComponent)
+		);
+		return false;
+	}
 
 	QueryerResult.InteractionActor = Actor;
 	QueryerResult.InteractionComponent = InteractionComponent;
@@ -82,14 +97,19 @@ USingularisInteractionComponent* USingularisInteractionQueryer::FindInteractionC
 	UPrimitiveComponent* PrimitiveComponent
 )
 {
-	if (!IsValid(Actor) || !IsValid(PrimitiveComponent)) return nullptr;
+	// 1) 零信任校验
+	if (!IsValid(Actor) || !IsValid(PrimitiveComponent))
+		return nullptr;
 
 	const UWorld* World = Actor->GetWorld();
-	if (!IsValid(World)) return nullptr;
+	if (!IsValid(World))
+		return nullptr;
 
+	// 2) 经映射子系统反查碰撞组件对应的交互组件
 	USingularisInteractionSubsystem* MappingSubsystem =
 		World->GetSubsystem<USingularisInteractionSubsystem>();
-	if (!IsValid(MappingSubsystem)) return nullptr;
+	if (!IsValid(MappingSubsystem))
+		return nullptr;
 
 	return MappingSubsystem->MappingComponent(PrimitiveComponent);
 }

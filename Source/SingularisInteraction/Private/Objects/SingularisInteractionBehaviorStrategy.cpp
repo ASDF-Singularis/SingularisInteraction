@@ -33,12 +33,14 @@
 #include <Engine/NetDriver.h>
 #include <GameFramework/Actor.h>
 
+#include "SingularisInteraction.h"
+
 UWorld* USingularisInteractionBehaviorStrategy::GetWorld() const
 {
 	// 1) 排除 CDO：防止在编辑器启动或序列化时获取错误的上下文
 	if (HasAnyFlags(RF_ClassDefaultObject)) return nullptr;
 
-	// 2) 通过 Outer 链（AbilityComponent → OwnerActor）获取 WorldContext
+	// 2) 通过 Outer 链（交互组件 → Owner Actor）获取 WorldContext
 	if (const UObject* Outer = GetOuter()) return Outer->GetWorld();
 
 	return Super::GetWorld();
@@ -49,6 +51,8 @@ void USingularisInteractionBehaviorStrategy::GetLifetimeReplicatedProps(
 ) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// 基类无复制属性；子类在此 DOREPLIFETIME 扩展自身状态
 }
 
 bool USingularisInteractionBehaviorStrategy::IsSupportedForNetworking() const
@@ -61,7 +65,7 @@ int32 USingularisInteractionBehaviorStrategy::GetFunctionCallspace(UFunction* Fu
 	// 1) CDO 不支持网络调用，直接返回 Local
 	if (HasAnyFlags(RF_ClassDefaultObject) || !IsSupportedForNetworking()) return FunctionCallspace::Local;
 
-	// 2) 通过 Outer（AbilityComponent）链式委托，由 UActorComponent::GetFunctionCallspace 再委托至 Owner Actor
+	// 2) 通过 Outer（交互组件）链式委托，由 UActorComponent::GetFunctionCallspace 再委托至 Owner Actor
 	return GetOuter()->GetFunctionCallspace(Function, Stack);
 }
 
@@ -77,10 +81,29 @@ bool USingularisInteractionBehaviorStrategy::CallRemoteFunction(
 
 	// 2) 沿 Outer 链查找 Owner Actor，通过其 NetDriver 转发 RPC
 	AActor* OwnerActor = GetTypedOuter<AActor>();
-	if (!IsValid(OwnerActor)) return false;
+	if (!IsValid(OwnerActor))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] CallRemoteFunction：Outer 链中未找到 Owner Actor，RPC 丢弃"),
+			*GetNameSafe(this)
+		);
+		return false;
+	}
 
 	UNetDriver* NetDriver = OwnerActor->GetNetDriver();
-	if (!IsValid(NetDriver)) return false;
+	if (!IsValid(NetDriver))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] CallRemoteFunction：Owner Actor %s 无 NetDriver，RPC 丢弃"),
+			*GetNameSafe(this),
+			*GetNameSafe(OwnerActor)
+		);
+		return false;
+	}
 
 	// 3) 将 this（子对象）作为最后一个参数传入，使 NetDriver 正确路由子对象上的 RPC
 	NetDriver->ProcessRemoteFunction(OwnerActor, Function, Parms, OutParms, Stack, this);

@@ -34,6 +34,7 @@
 #include <GameFramework/PlayerController.h>
 #include <UObject/ConstructorHelpers.h>
 
+#include "SingularisInteraction.h"
 #include "Components/SingularisInteractionComponent.h"
 #include "Components/SingularisInteractorComponent.h"
 
@@ -54,6 +55,13 @@ USingularisInteractorWidgetComponent::USingularisInteractorWidgetComponent()
 
 	if (WidgetClassFinder.Succeeded())
 		InteractorWidgetClass = WidgetClassFinder.Class;
+	else
+		UE_LOG(
+		LogSingularisInteraction,
+		Error,
+		TEXT("默认交互者控件类加载失败：%s"),
+		TEXT("/SingularisInteraction/UserInterfaces/WBP_Default_SingularisInteractorWidget")
+	);
 }
 
 void USingularisInteractorWidgetComponent::BeginPlay()
@@ -62,7 +70,8 @@ void USingularisInteractorWidgetComponent::BeginPlay()
 
 	checkf(
 		GetOwner()->IsA<APlayerController>(),
-		TEXT("SingularisInteractorWidgetComponent: Owner is not PlayerController")
+		TEXT("[%s] Owner 非 PlayerController"),
+		*GetNameSafe(GetOwner())
 	);
 
 	OwnerPlayerController = Cast<APlayerController>(GetOwner());
@@ -81,7 +90,17 @@ void USingularisInteractorWidgetComponent::EndPlay(const EEndPlayReason::Type En
 	if (bAutoCreateView)
 	{
 		if (UUserWidget* const CreatedUserWidget = Cast<UUserWidget>(InteractorView.GetObject()))
+		{
 			CreatedUserWidget->RemoveFromParent();
+
+			UE_LOG(
+				LogSingularisInteraction,
+				Display,
+				TEXT("[%s] EndPlay：交互者视图 %s 已从视口移除"),
+				*GetNameSafe(GetOwner()),
+				*GetNameSafe(CreatedUserWidget)
+			);
+		}
 	}
 
 	// 2) 清空引用，事件绑定随组件销毁自动失效
@@ -101,9 +120,19 @@ void USingularisInteractorWidgetComponent::SetInteractorView(
 	if (InteractorView == NewInteractorView) return;
 	InteractorView = NewInteractorView;
 
-	// 3) 外部注入后主动拉取一次全量状态，消除错过事件导致的空白期
-	if (!OwnerPlayerController.IsValid()) return;
+	// 3) 非本地控制器端无视图宿主，无法推送
+	if (!OwnerPlayerController.IsValid())
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] SetInteractorView：非本地控制器，无法推送视图状态"),
+			*GetNameSafe(GetOwner())
+		);
+		return;
+	}
 
+	// 4) 外部注入后主动拉取一次全量状态，消除错过事件导致的空白期
 	FullPull(OwnerPlayerController->FindComponentByClass<USingularisInteractorComponent>());
 }
 
@@ -138,7 +167,17 @@ void USingularisInteractorWidgetComponent::CreateInteractorView()
 
 	// 2) 创建交互者控件
 	UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(OwnerPlayerController.Get(), InteractorWidgetClass);
-	if (!IsValid(CreatedWidget)) return;
+	if (!IsValid(CreatedWidget))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] CreateInteractorView：控件类 %s 创建控件失败"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(InteractorWidgetClass.Get())
+		);
+		return;
+	}
 
 	// MustImplement 仅约束编辑器选择器，C++ 与蓝图图赋值可绕过，创建后运行时复核接口实现
 	if (!ensureMsgf(
@@ -152,6 +191,14 @@ void USingularisInteractorWidgetComponent::CreateInteractorView()
 	// 3) 缓存视图并添加到视口
 	InteractorView = CreatedWidget;
 	CreatedWidget->AddToViewport();
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] CreateInteractorView：交互者视图 %s 创建成功"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(CreatedWidget)
+	);
 }
 
 void USingularisInteractorWidgetComponent::ObserveInteractorComponent()
@@ -162,7 +209,16 @@ void USingularisInteractorWidgetComponent::ObserveInteractorComponent()
 	// 2) 获取同属主的交互者组件
 	USingularisInteractorComponent* InteractorComponent =
 		OwnerPlayerController->FindComponentByClass<USingularisInteractorComponent>();
-	if (!IsValid(InteractorComponent)) return;
+	if (!IsValid(InteractorComponent))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] ObserveInteractorComponent：未找到交互者组件，无法订阅事件"),
+			*GetNameSafe(GetOwner())
+		);
+		return;
+	}
 
 	// 3) 绑定交互者事件
 	InteractorComponent->OnInteractionTargetChangedEvent.AddDynamic(
@@ -176,6 +232,14 @@ void USingularisInteractorWidgetComponent::ObserveInteractorComponent()
 
 	// 4) 绑定后主动拉取一次全量状态，消除错过事件导致的空白期
 	FullPull(InteractorComponent);
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] ObserveInteractorComponent：已绑定交互者组件 %s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(InteractorComponent)
+	);
 }
 
 void USingularisInteractorWidgetComponent::FullPull(

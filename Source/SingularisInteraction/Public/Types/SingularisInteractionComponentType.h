@@ -38,7 +38,9 @@ class USingularisInteractionStrategy;
 class USingularisInteractionBehaviorStrategy;
 
 /**
- * 引力奇点交互模式
+ * 引力奇点交互模式。
+ *
+ * 注：基类查询器固定执行射线查询，不读取本枚举；Collision 模式尚未实现。
  */
 UENUM(BlueprintType)
 enum class ESingularisInteractionMode : uint8
@@ -83,7 +85,7 @@ struct SINGULARISINTERACTION_API FSingularisInteractionStrategyPipeline
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (TitleProperty = "StrategyName"))
 	TArray<FSingularisInteractionStrategyEntry> Strategies;
 
-	/** 是否在策略完成后挂起后续策略 */
+	/** 是否在策略完成后挂起后续策略（当前无读取方，预留语义）。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bSuspend = true;
 };

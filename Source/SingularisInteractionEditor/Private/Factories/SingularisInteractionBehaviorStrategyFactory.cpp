@@ -48,6 +48,8 @@ UObject* USingularisInteractionBehaviorStrategyFactory::FactoryCreateNew(
 	FFeedbackContext* Warn
 )
 {
+	// 1) 利用 KismetEditorUtilities 自动生成蓝图资产
+	// 2) 强制将其基类指派为最新的交互行为策略基础类 USingularisInteractionBehaviorStrategy
 	return FKismetEditorUtilities::CreateBlueprint(
 		USingularisInteractionBehaviorStrategy::StaticClass(),
 		InParent,

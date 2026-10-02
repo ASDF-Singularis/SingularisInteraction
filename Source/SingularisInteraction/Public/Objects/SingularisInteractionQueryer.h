@@ -1,5 +1,5 @@
 /* ====================================================================== *
- * InteractionQueryer.h                                                   *
+ * SingularisInteractionQueryer.h                                         *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2025 TrifingZW <TrifingZW@gmail.com>           *
@@ -62,7 +62,7 @@ public:
 	)
 	float TraceDistance = 200.0f;
 
-	/** 查询模式 */
+	/** 查询模式（当前基类实现固定执行射线查询，不读取本属性）。 */
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,

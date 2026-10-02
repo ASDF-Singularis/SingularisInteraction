@@ -33,30 +33,25 @@
 #include <AssetToolsModule.h>
 #include <IAssetTools.h>
 
+#include "SingularisInteraction.h"
 #include "Factories/SingularisInteractionBehaviorStrategyFactory.h"
 #include "Factories/SingularisInteractionQueryerFactory.h"
 #include "Factories/SingularisInteractionStrategyFactory.h"
 #include "Factories/SingularisInteractionWidgetFactory.h"
 #include "Factories/SingularisInteractorWidgetFactory.h"
 
-// 定义 LOCTEXT_NAMESPACE，用于本地化支持
 #define LOCTEXT_NAMESPACE "FSingularisInteractionEditorModule"
 
 void FSingularisInteractionEditorModule::StartupModule()
 {
-	// 1. 获取 AssetTools 模块
-	// 使用 LoadModuleChecked 确保模块存在，如果 AssetTools 没加载，这里崩溃是正常的（依赖项缺失）
+	// 1) 登记 Singularis 资产分类
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	// 2. 注册自定义主分类 (My Plugin / Singularis)
-	// 使用 LOCTEXT 进行本地化，这样以后可以翻译成中文或其他语言
 	const EAssetTypeCategories::Type SingularisPluginCategory = AssetTools.RegisterAdvancedAssetCategory(
 		FName("Singularis"),
 		LOCTEXT("SingularisCategory", "Singularis")
 	);
 
-	// 3. 注册资产行为 (使用辅助函数，代码更整洁)
-	// 这里演示如何注册多个资产，如果你有新资产，只需要复制这一行并替换类名
+	// 2) 登记五类资产行为
 	RegisterAssetTypeAction(
 		AssetTools,
 		MakeShareable(new FAssetTypeActions_SingularisInteractionQueryer(SingularisPluginCategory))
@@ -82,35 +77,43 @@ void FSingularisInteractionEditorModule::StartupModule()
 		MakeShareable(new FAssetTypeActions_SingularisInteractorWidget(SingularisPluginCategory))
 	);
 
-	// 示例：如果有第二个资产
-	// RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_MySecondAsset(MyPluginCategory)));
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("StartupModule：编辑器模块初始化完成，已登记 %d 项资产类型行为"),
+		CreatedAssetTypeActions.Num()
+	);
 }
 
 void FSingularisInteractionEditorModule::ShutdownModule()
 {
-	// 关键点：安全卸载逻辑
-	// 1. 检查 AssetTools 模块是否还加载着（编辑器关闭时可能已经被卸载了）
+	// 1) 编辑器关闭时 AssetTools 可能已卸载，需先检查再反注册
 	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
 		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-		// 2. 遍历数组，注销每一个 Action
-		for (auto Action : CreatedAssetTypeActions)
+		for (const auto& Action : CreatedAssetTypeActions)
 			AssetTools.UnregisterAssetTypeActions(Action.ToSharedRef());
 	}
 
-	// 3. 清空数组，释放智能指针
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("ShutdownModule：编辑器模块卸载，已反注册 %d 项资产类型行为"),
+		CreatedAssetTypeActions.Num()
+	);
+
 	CreatedAssetTypeActions.Empty();
 }
 
-// 辅助函数实现
 void FSingularisInteractionEditorModule::RegisterAssetTypeAction(
 	IAssetTools& AssetTools,
 	const TSharedRef<IAssetTypeActions>& Action
 )
 {
+	// 登记资产行为并留存引用，供卸载时反注册
 	AssetTools.RegisterAssetTypeActions(Action);
-	CreatedAssetTypeActions.Add(Action); // 加入缓存列表
+	CreatedAssetTypeActions.Add(Action);
 }
 
 #undef LOCTEXT_NAMESPACE

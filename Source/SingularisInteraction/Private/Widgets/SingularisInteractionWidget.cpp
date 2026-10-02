@@ -30,6 +30,8 @@
 
 #include "Widgets/SingularisInteractionWidget.h"
 
+// 基类默认实现为空：框架只保证调用时序与数据到达，实际控件更新由蓝图或 C++ 子类覆写 SPI 完成
+
 void USingularisInteractionWidget::OnRefresh_Implementation(bool bEnabled, bool bHovered) {}
 
 void USingularisInteractionWidget::OnTrigger_Implementation() {}

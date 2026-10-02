@@ -37,6 +37,7 @@
 #include <GameFramework/PlayerController.h>
 #include <UObject/ConstructorHelpers.h>
 
+#include "SingularisInteraction.h"
 #include "Components/SingularisInteractionComponent.h"
 #include "Components/SingularisInteractorComponent.h"
 
@@ -59,6 +60,13 @@ USingularisInteractionWidgetComponent::USingularisInteractionWidgetComponent()
 
 	if (WidgetClassFinder.Succeeded())
 		InteractionWidgetClass = WidgetClassFinder.Class;
+	else
+		UE_LOG(
+		LogSingularisInteraction,
+		Error,
+		TEXT("默认交互控件类加载失败：%s"),
+		TEXT("/SingularisInteraction/UserInterfaces/WBP_Default_SingularisInteractionWidget")
+	);
 }
 
 void USingularisInteractionWidgetComponent::BeginPlay()
@@ -100,15 +108,43 @@ void USingularisInteractionWidgetComponent::ProxyWidgetComponent()
 {
 	// 1) 本地玩家检查
 	const APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
-	if (!IsValid(PlayerController) || !PlayerController->IsLocalController()) return;
+	if (!IsValid(PlayerController) || !PlayerController->IsLocalController())
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] ProxyWidgetComponent：非本地客户端，跳过控件创建"),
+			*GetNameSafe(GetOwner())
+		);
+		return;
+	}
 
 	// 2) 获取承载交互控件的控件组件
 	UWidgetComponent* WidgetComponent = Cast<UWidgetComponent>(WidgetComponentReference.GetComponent(GetOwner()));
-	if (!IsValid(WidgetComponent)) return;
+	if (!IsValid(WidgetComponent))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] ProxyWidgetComponent：控件组件引用无效，无法挂载交互控件"),
+			*GetNameSafe(GetOwner())
+		);
+		return;
+	}
 
 	// 3) 创建交互控件
 	UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(GetWorld(), InteractionWidgetClass);
-	if (!IsValid(CreatedWidget)) return;
+	if (!IsValid(CreatedWidget))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] ProxyWidgetComponent：控件类 %s 创建控件失败"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(InteractionWidgetClass.Get())
+		);
+		return;
+	}
 
 	// MustImplement 仅约束编辑器选择器，C++ 与蓝图图赋值可绕过，创建后运行时复核接口实现
 	if (!ensureMsgf(
@@ -125,6 +161,14 @@ void USingularisInteractionWidgetComponent::ProxyWidgetComponent()
 	WidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
 	WidgetComponent->SetWidget(CreatedWidget);
 	WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] ProxyWidgetComponent：交互控件 %s 创建并挂载成功"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(CreatedWidget)
+	);
 }
 
 void USingularisInteractionWidgetComponent::ProxyPromptVolume()
@@ -149,6 +193,14 @@ void USingularisInteractionWidgetComponent::ProxyPromptVolume()
 		this,
 		&USingularisInteractionWidgetComponent::OnPromptVolumeEndOverlap
 	);
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] ProxyPromptVolume：提示范围 %s 装配完成"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(PromptVolume)
+	);
 }
 
 void USingularisInteractionWidgetComponent::ObserveInteractionComponent()
@@ -161,7 +213,16 @@ void USingularisInteractionWidgetComponent::ObserveInteractionComponent()
 	USingularisInteractionComponent* InteractionComponent = Cast<USingularisInteractionComponent>(
 		InteractionComponentReference.GetComponent(GetOwner())
 	);
-	if (!IsValid(InteractionComponent)) return;
+	if (!IsValid(InteractionComponent))
+	{
+		UE_LOG(
+			LogSingularisInteraction,
+			Warning,
+			TEXT("[%s] ObserveInteractionComponent：交互组件引用无效，无法订阅事件"),
+			*GetNameSafe(GetOwner())
+		);
+		return;
+	}
 
 	// 3) 订阅交互状态事件
 	InteractionComponent->OnInteractionEvent.AddDynamic(
@@ -184,6 +245,14 @@ void USingularisInteractionWidgetComponent::ObserveInteractionComponent()
 		InteractionView.GetObject(),
 		InteractionComponent->Enabled(),
 		InteractionComponent->Hovered()
+	);
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] ObserveInteractionComponent：已绑定交互组件 %s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(InteractionComponent)
 	);
 }
 

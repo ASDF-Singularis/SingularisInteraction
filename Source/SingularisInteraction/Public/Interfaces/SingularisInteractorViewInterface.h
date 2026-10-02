@@ -50,6 +50,7 @@ class USingularisInteractorViewInterface : public UInterface
 	GENERATED_BODY()
 };
 
+/** 交互者视图实现接口：接收交互者当前目标的全量刷新、目标变更与触发事件。 */
 class SINGULARISINTERACTION_API ISingularisInteractorViewInterface
 {
 	GENERATED_BODY()

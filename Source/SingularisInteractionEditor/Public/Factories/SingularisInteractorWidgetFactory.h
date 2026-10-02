@@ -84,7 +84,7 @@ public:
 
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override
 	{
-		// 这里创建一个工厂实例给编辑器使用
+		// 1) 动态实例化工厂对象以接管该资产蓝图的创建流程
 		USingularisInteractorWidgetFactory* Factory = NewObject<USingularisInteractorWidgetFactory>();
 		return Factory;
 	}

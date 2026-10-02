@@ -36,10 +36,9 @@
 
 USingularisInteractorWidgetFactory::USingularisInteractorWidgetFactory()
 {
-	// 关键配置
-	bCreateNew = true; // 允许创建新资产
-	bEditAfterNew = true; // 创建后自动打开编辑器（可选）
-	SupportedClass = USingularisInteractorWidget::StaticClass(); // 关联具体的资产类
+	bCreateNew = true;
+	bEditAfterNew = true;
+	SupportedClass = USingularisInteractorWidget::StaticClass();
 }
 
 UObject* USingularisInteractorWidgetFactory::FactoryCreateNew(
@@ -51,15 +50,15 @@ UObject* USingularisInteractorWidgetFactory::FactoryCreateNew(
 	FFeedbackContext* Warn
 )
 {
+	// 1) 利用 KismetEditorUtilities 自动生成控件蓝图资产
+	// 2) 指定 UWidgetBlueprint 蓝图类型与 UWidgetBlueprintGeneratedClass 生成类类型
 	return FKismetEditorUtilities::CreateBlueprint(
 		USingularisInteractorWidget::StaticClass(),
 		InParent,
 		InName,
 		BPTYPE_Normal,
 		UWidgetBlueprint::StaticClass(),
-		// 必须指定为 UWidgetBlueprint
 		UWidgetBlueprintGeneratedClass::StaticClass(),
-		// 必须指定生成的类类型
 		NAME_None
 	);
 }

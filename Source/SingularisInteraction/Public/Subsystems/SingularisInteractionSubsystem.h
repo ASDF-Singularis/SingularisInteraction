@@ -1,5 +1,5 @@
 ﻿/* ====================================================================== *
- * SingularisInteractionMappingSubsystem.h                                *
+ * SingularisInteractionSubsystem.h                                      *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *

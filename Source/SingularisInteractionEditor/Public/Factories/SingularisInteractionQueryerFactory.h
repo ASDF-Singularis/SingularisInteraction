@@ -38,7 +38,9 @@
 #include "SingularisInteractionQueryerFactory.generated.h"
 
 /**
- * 
+ * 引力奇点交互查询器工厂。
+ *
+ * 在内容浏览器中创建 USingularisInteractionQueryer 的蓝图资产。
  */
 UCLASS()
 class SINGULARISINTERACTIONEDITOR_API USingularisInteractionQueryerFactory : public UFactory
@@ -58,6 +60,9 @@ public:
 	virtual bool ShouldShowInNewMenu() const override;
 };
 
+/**
+ * 引力奇点交互查询器资产行为。
+ */
 class FAssetTypeActions_SingularisInteractionQueryer : public FAssetTypeActions_Blueprint
 {
 public:
@@ -79,7 +84,7 @@ public:
 
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override
 	{
-		// 这里创建一个工厂实例给编辑器使用
+		// 1) 动态实例化工厂对象以接管该资产蓝图的创建流程
 		USingularisInteractionQueryerFactory* Factory = NewObject<USingularisInteractionQueryerFactory>();
 		return Factory;
 	}

@@ -47,6 +47,7 @@ class USingularisInteractionViewInterface : public UInterface
 	GENERATED_BODY()
 };
 
+/** 交互视图实现接口：接收交互状态的全量刷新与触发、悬浮、提示范围增量事件。 */
 class SINGULARISINTERACTION_API ISingularisInteractionViewInterface
 {
 	GENERATED_BODY()

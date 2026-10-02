@@ -35,10 +35,9 @@
 
 USingularisInteractionQueryerFactory::USingularisInteractionQueryerFactory()
 {
-	// 关键配置
-	bCreateNew = true; // 允许创建新资产
-	bEditAfterNew = true; // 创建后自动打开编辑器（可选）
-	SupportedClass = USingularisInteractionQueryer::StaticClass(); // 关联具体的资产类
+	bCreateNew = true;
+	bEditAfterNew = true;
+	SupportedClass = USingularisInteractionQueryer::StaticClass();
 }
 
 UObject* USingularisInteractionQueryerFactory::FactoryCreateNew(
@@ -50,8 +49,8 @@ UObject* USingularisInteractionQueryerFactory::FactoryCreateNew(
 	FFeedbackContext* Warn
 )
 {
-	// 核心逻辑：创建蓝图，并指定 ParentClass 为你的 C++ 抽象类
-	// UMyAbstractClass 是你想要继承的那个 C++ 类
+	// 1) 利用 KismetEditorUtilities 自动生成蓝图资产
+	// 2) 强制将其基类指派为最新的交互查询器基础类 USingularisInteractionQueryer
 	return FKismetEditorUtilities::CreateBlueprint(
 		USingularisInteractionQueryer::StaticClass(),
 		InParent,

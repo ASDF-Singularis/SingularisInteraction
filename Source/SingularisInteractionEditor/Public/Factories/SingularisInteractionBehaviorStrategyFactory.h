@@ -38,7 +38,9 @@
 #include "SingularisInteractionBehaviorStrategyFactory.generated.h"
 
 /**
- * 
+ * 引力奇点交互行为策略工厂。
+ *
+ * 在内容浏览器中创建 USingularisInteractionBehaviorStrategy 的蓝图资产。
  */
 UCLASS()
 class SINGULARISINTERACTIONEDITOR_API USingularisInteractionBehaviorStrategyFactory : public UFactory
@@ -58,6 +60,9 @@ public:
 	virtual bool ShouldShowInNewMenu() const override;
 };
 
+/**
+ * 引力奇点交互行为策略资产行为。
+ */
 class FAssetTypeActions_SingularisInteractionBehaviorStrategy : public FAssetTypeActions_Blueprint
 {
 public:

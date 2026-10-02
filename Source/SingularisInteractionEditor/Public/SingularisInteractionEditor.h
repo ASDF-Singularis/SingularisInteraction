@@ -37,6 +37,12 @@
 
 class IAssetTools;
 
+/**
+ * 引力奇点交互编辑器模块。
+ *
+ * 向资产工具注册"Singularis"资产分类，并登记五类资产类型行为
+ * （交互查询器 / 交互策略 / 交互行为策略 / 交互控件 / 交互者控件）；卸载时反注册。
+ */
 class FSingularisInteractionEditorModule : public IModuleInterface
 {
 public:
@@ -45,11 +51,9 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	/** * 关键点：缓存所有注册的资产行为指针。
-	 * 如果不保存它们，ShutdownModule 时就无法注销，会导致内存泄漏或 Crash。
-	 */
+	/** 已登记的资产类型行为，供卸载时反注册；不留存引用会导致无法注销与内存泄漏。 */
 	TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions{};
 
-	/** 辅助函数：简化注册流程 */
+	/** 登记资产类型行为并留存引用。 */
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, const TSharedRef<IAssetTypeActions>& Action);
 };

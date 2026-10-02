@@ -41,7 +41,8 @@ struct FSingularisInteractionStrategyContext;
  * 引力奇点交互策略。
  *
  * 交互管线的执行单元，由交互组件按策略标签层级匹配后依次执行。
- * 子类覆写 CanExecute 判定执行前提，覆写 Execute 实现交互副作用。
+ * 子类覆写 Execute 实现交互副作用；CanExecute 供业务侧自行调用判定执行前提，
+ * 当前触发管线直接执行 Execute，不会在管线层调用 CanExecute。
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)
 class SINGULARISINTERACTION_API USingularisInteractionStrategy : public UObject
@@ -64,6 +65,8 @@ public:
 
 	/**
 	 * 判定本策略在当前上下文中是否允许执行。
+	 *
+	 * 供业务侧自行调用；当前触发管线不调用本函数。
 	 *
 	 * @param Context 交互策略上下文。
 	 * @return 允许执行时返回 true。
