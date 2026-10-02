@@ -47,7 +47,7 @@ UCLASS(
 	NotBlueprintable,
 	BlueprintType,
 	ClassGroup = ("Singularis"),
-	meta = (BlueprintSpawnableComponent, DisplayName = "引力奇点交互子系统")
+	meta = (DisplayName = "引力奇点交互子系统")
 )
 class SINGULARISINTERACTION_API USingularisInteractionSubsystem : public UWorldSubsystem
 {
