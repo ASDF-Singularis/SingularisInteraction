@@ -67,7 +67,7 @@ USingularisInteractorComponent::USingularisInteractorComponent()
 	else
 		UE_LOG(
 		LogSingularisInteraction,
-		Error,
+		Warning,
 		TEXT("默认输入映射上下文加载失败：%s"),
 		TEXT("/SingularisInteraction/Inputs/IMC_Default_SingularisInteractor")
 	);
@@ -77,7 +77,7 @@ USingularisInteractorComponent::USingularisInteractorComponent()
 	else
 		UE_LOG(
 		LogSingularisInteraction,
-		Error,
+		Warning,
 		TEXT("默认交互输入动作加载失败：%s"),
 		TEXT("/SingularisInteraction/Inputs/Actions/IA_Interaction")
 	);

@@ -31,6 +31,7 @@
 #include "Components/SingularisInteractorWidgetComponent.h"
 
 #include <Blueprint/UserWidget.h>
+#include <GameFramework/HUD.h>
 #include <GameFramework/PlayerController.h>
 #include <UObject/ConstructorHelpers.h>
 
@@ -58,7 +59,7 @@ USingularisInteractorWidgetComponent::USingularisInteractorWidgetComponent()
 	else
 		UE_LOG(
 		LogSingularisInteraction,
-		Error,
+		Warning,
 		TEXT("默认交互者控件类加载失败：%s"),
 		TEXT("/SingularisInteraction/UserInterfaces/WBP_Default_SingularisInteractorWidget")
 	);
@@ -68,13 +69,9 @@ void USingularisInteractorWidgetComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	checkf(
-		GetOwner()->IsA<APlayerController>(),
-		TEXT("[%s] Owner 非 PlayerController"),
-		*GetNameSafe(GetOwner())
-	);
+	checkf(GetOwner()->IsA<AHUD>(), TEXT("SingularisQuestWidgetComponent: Owner is not HUD"));
 
-	OwnerPlayerController = Cast<APlayerController>(GetOwner());
+	OwnerHUD = Cast<AHUD>(GetOwner());
 
 	// 1) 自动创建视图
 	if (bAutoCreateView)
@@ -120,20 +117,12 @@ void USingularisInteractorWidgetComponent::SetInteractorView(
 	if (InteractorView == NewInteractorView) return;
 	InteractorView = NewInteractorView;
 
-	// 3) 非本地控制器端无视图宿主，无法推送
-	if (!OwnerPlayerController.IsValid())
-	{
-		UE_LOG(
-			LogSingularisInteraction,
-			Warning,
-			TEXT("[%s] SetInteractorView：非本地控制器，无法推送视图状态"),
-			*GetNameSafe(GetOwner())
-		);
-		return;
-	}
+	// 3) 本地玩家检查
+	const APlayerController* PlayerController = OwnerHUD->GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !PlayerController->IsLocalController()) return;
 
 	// 4) 外部注入后主动拉取一次全量状态，消除错过事件导致的空白期
-	FullPull(OwnerPlayerController->FindComponentByClass<USingularisInteractorComponent>());
+	FullPull(PlayerController->FindComponentByClass<USingularisInteractorComponent>());
 }
 
 void USingularisInteractorWidgetComponent::HandleTargetChanged(
@@ -163,10 +152,11 @@ void USingularisInteractorWidgetComponent::HandleTriggered(
 void USingularisInteractorWidgetComponent::CreateInteractorView()
 {
 	// 1) 本地玩家检查
-	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
+	const APlayerController* PlayerController = OwnerHUD->GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !PlayerController->IsLocalController()) return;
 
 	// 2) 创建交互者控件
-	UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(OwnerPlayerController.Get(), InteractorWidgetClass);
+	UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(PlayerController, InteractorWidgetClass);
 	if (!IsValid(CreatedWidget))
 	{
 		UE_LOG(
@@ -204,11 +194,12 @@ void USingularisInteractorWidgetComponent::CreateInteractorView()
 void USingularisInteractorWidgetComponent::ObserveInteractorComponent()
 {
 	// 1) 本地玩家检查
-	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
+	const APlayerController* PlayerController = OwnerHUD->GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !PlayerController->IsLocalController()) return;
 
-	// 2) 获取同属主的交互者组件
+	// 2) 获取交互者组件
 	USingularisInteractorComponent* InteractorComponent =
-		OwnerPlayerController->FindComponentByClass<USingularisInteractorComponent>();
+		PlayerController->FindComponentByClass<USingularisInteractorComponent>();
 	if (!IsValid(InteractorComponent))
 	{
 		UE_LOG(

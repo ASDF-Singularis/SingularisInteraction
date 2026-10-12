@@ -63,7 +63,7 @@ USingularisInteractionWidgetComponent::USingularisInteractionWidgetComponent()
 	else
 		UE_LOG(
 		LogSingularisInteraction,
-		Error,
+		Warning,
 		TEXT("默认交互控件类加载失败：%s"),
 		TEXT("/SingularisInteraction/UserInterfaces/WBP_Default_SingularisInteractionWidget")
 	);

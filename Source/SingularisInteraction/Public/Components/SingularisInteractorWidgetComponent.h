@@ -90,8 +90,8 @@ public:
 private:
 #pragma region State
 
-	/** 拥有本组件的玩家控制器 */
-	TWeakObjectPtr<APlayerController> OwnerPlayerController = nullptr;
+	/** 拥有本组件的 HUD */
+	TWeakObjectPtr<AHUD> OwnerHUD = nullptr;
 
 	/** 运行时实例化的交互者视图缓存 */
 	UPROPERTY(Transient)
