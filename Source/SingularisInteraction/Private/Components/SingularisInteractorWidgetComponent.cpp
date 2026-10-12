@@ -152,7 +152,7 @@ void USingularisInteractorWidgetComponent::HandleTriggered(
 void USingularisInteractorWidgetComponent::CreateInteractorView()
 {
 	// 1) 本地玩家检查
-	const APlayerController* PlayerController = OwnerHUD->GetOwningPlayerController();
+	APlayerController* PlayerController = OwnerHUD->GetOwningPlayerController();
 	if (!IsValid(PlayerController) || !PlayerController->IsLocalController()) return;
 
 	// 2) 创建交互者控件
