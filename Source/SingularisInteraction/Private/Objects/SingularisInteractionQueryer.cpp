@@ -1,5 +1,5 @@
 /* ====================================================================== *
- * SingularisInteractionQueryer.cpp                                          *
+ * SingularisInteractionQueryer.cpp                                       *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2025 TrifingZW <TrifingZW@gmail.com>           *

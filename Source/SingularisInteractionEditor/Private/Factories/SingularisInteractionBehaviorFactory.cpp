@@ -1,0 +1,64 @@
+/* ====================================================================== *
+ * SingularisInteractionBehaviorFactory.cpp                               *
+ * ====================================================================== *
+ * SPDX-License-Identifier: MIT                                           *
+ * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
+ *                                                                        *
+ * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
+ * Created: 2026/01/30 | Author: TrifingZW                                *
+ * Licensed under MIT License                                             *
+ *                                                                        *
+ * Permission is hereby granted, free of charge, to any person obtaining  *
+ * a copy of this software and associated documentation files (the        *
+ * "Software"), to deal in the Software without restriction, including    *
+ * without limitation the rights to use, copy, modify, merge, publish,    *
+ * distribute, sublicense, and/or sell copies of the Software, and to     *
+ * permit persons to whom the Software is furnished to do so, subject to  *
+ * the following conditions:                                              *
+ *                                                                        *
+ * The above copyright notice and this permission notice shall be         *
+ * included in all copies or substantial portions of the Software.        *
+ *                                                                        *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   *
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   *
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      *
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
+ * ====================================================================== */
+
+#include "Factories/SingularisInteractionBehaviorFactory.h"
+
+#include <Kismet2/KismetEditorUtilities.h>
+
+USingularisInteractionBehaviorFactory::USingularisInteractionBehaviorFactory()
+{
+	bCreateNew = true;
+	bEditAfterNew = true;
+	SupportedClass = USingularisInteractionBehavior::StaticClass();
+}
+
+UObject* USingularisInteractionBehaviorFactory::FactoryCreateNew(
+	UClass* InClass,
+	UObject* InParent,
+	const FName InName,
+	EObjectFlags Flags,
+	UObject* Context,
+	FFeedbackContext* Warn
+)
+{
+	// 1) 利用 KismetEditorUtilities 自动生成蓝图资产
+	// 2) 强制将其基类指派为最新的交互行为基础类 USingularisInteractionBehavior
+	return FKismetEditorUtilities::CreateBlueprint(
+		USingularisInteractionBehavior::StaticClass(),
+		InParent,
+		InName,
+		BPTYPE_Normal,
+		UBlueprint::StaticClass(),
+		UBlueprintGeneratedClass::StaticClass(),
+		NAME_None
+	);
+}
+
+bool USingularisInteractionBehaviorFactory::ShouldShowInNewMenu() const { return true; }

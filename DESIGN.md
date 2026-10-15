@@ -1,680 +1,664 @@
 # SingularisInteraction 架构设计文档 (Architecture Document)
 
 > [!IMPORTANT]
-> SingularisInteraction 是 Singularis 系列的标准参考实现，以系列标准模式 **逻辑 (Logic) — 表现 (Presentation) — 控制 (Control)** 组织全部代码，在 Unreal Engine 5 中把交互流程拆解为**目标锁定 (Target Lock-on)**、**输入触发 (Input Trigger)**、**服务器权威执行 (Server-Authoritative Execution)** 与**表现驱动 (Presentation Driving)** 四个相互独立、可单独替换的扩展点。
+> SingularisInteraction 是 Singularis 系列的标准参考实现，以**意图驱动 (Intent-Driven)** 实现交互领域的通用基础设施：控制端把任意来源翻译为中性**意图 (Intent)**，逻辑端以可插拔**会话 (Session)** 把意图推进为**会话事件 (Session Event)**，并以**事件流 (Event Stream)** 产出连续与离散事件，本地玩家以**本地会话 (Local Session)** 就地推进并产出零延迟会话流；插件不内建任何具体交互业务。
 
 ## 概述 (Overview)
 
-`SingularisInteraction`（引力奇点交互插件）是 Singularis 系列中面向交互领域的通用基础设施插件。插件不内建任何具体交互业务（拾取、开关、乘坐、开门等），只提供交互流程的骨架、数据契约与网络通路；具体副作用由项目侧以**交互策略 (Interaction Strategy)** 子类实现，表现层由项目侧以**视图 (View)** 实现。
+本插件是 Singularis 系列的标准参考实现，也是面向交互领域的通用基础设施：提供交互会话骨架、数据契约、事件流以及控制端与表现端的接入契约。插件不内建具体交互业务（拾取、开关、乘坐、开门等）：副作用由项目侧以**交互响应 (Interaction Response)** 实现，过程规则由项目侧以**交互会话 (Interaction Session)** 实现，表现由项目侧以**视图 (View)** 实现。
 
-在架构上，本插件是系列标准模式**逻辑 (Logic) — 表现 (Presentation/UI) — 控制 (Control/Input)** 的完整实例：交互组件与策略对象承担逻辑，两个控件组件与两个视图接口承担表现，交互者组件承担控制与输入（见 2.1）。
+架构命题为**协议只讲意图，不讲手势**：控制端把任意来源（玩家输入、AI 决策、脚本）翻译为中性意图，逻辑端以可插拔会话把意图推进为交付事件；手势识别不进入协议，协议中不存在阶段枚举与时钟容差。
 
-插件遵循系列的单体职责原则：运行时模块不依赖任何其他 Singularis 插件，删除其他插件不影响本插件的编译与运行。
+第二命题为**一次交互是一次会话 (Interaction as a Session)**：控制端提交的是单次**请求 (Request)**，逻辑端把它升级为具备生命周期的**会话 (Session)**；达成与中止是会话的结束，而非请求的结束。单次请求只是会话的最小形态（会话建立即达成）。
 
-| 项 | 值 |
-| --- | --- |
-| 插件名 / FriendlyName | `SingularisInteraction` |
-| 版本 / 状态 | `0.1.0`，`IsBetaVersion = true`，`IsExperimentalVersion = false` |
-| 资产分类 / 作者 | `Singularis` / TrifingZW |
-| 许可 | MIT |
-| 运行时模块 | `SingularisInteraction`（Type = `Runtime`，LoadingPhase = `Default`） |
-| 编辑器模块 | `SingularisInteractionEditor`（Type = `Editor`，LoadingPhase = `Default`） |
-| 插件级依赖 | `EnhancedInput` |
-| Singularis 插件间依赖 | 无 |
-| 可含内容 | 是（`CanContainContent = true`） |
+架构由四个相互独立、可单独替换的面构成：**意图协议 (Intent Protocol)**、**会话推进 (Session Progression)**、**事件流 (Event Stream)**、**本地会话 (Local Session)**。
 
-运行时模块的模块级依赖（`SingularisInteraction.Build.cs`）：
-
-| 分组 | 模块 |
-| --- | --- |
-| 核心 | `Core`、`CoreUObject`、`Engine`、`NetCore` |
-| 表现 | `UMG`、`Slate`、`SlateCore` |
-| 输入 | `InputCore`、`EnhancedInput` |
-| 配置 | `EngineSettings`、`DeveloperSettings` |
-| 语义 | `GameplayTags` |
-
-编辑器模块的模块级依赖（`SingularisInteractionEditor.Build.cs`）：`Core`、`CoreUObject`、`Engine`、`Projects`、`SingularisInteraction`、`UMG`、`UMGEditor`、`UnrealEd`、`AssetTools`、`ContentBrowser`。
-
-源码目录结构：
-
-```
-Plugins/SingularisInteraction/
-├── SingularisInteraction.uplugin
-├── Content/
-│   ├── Inputs/                 # IA_Interaction、IMC_Default_SingularisInteractor
-│   ├── Textures/               # T_* 图标资源
-│   └── UserInterfaces/         # WBP_Default_SingularisInteractionWidget
-└── Source/
-    ├── SingularisInteraction/           # Runtime
-    │   ├── Public/     # SingularisInteraction.h + Components / Configs / Interfaces / Objects / Subsystems / Types / Widgets
-    │   └── Private/    # SingularisInteraction.cpp + 与 Public 同名的镜像目录
-    └── SingularisInteractionEditor/     # Editor
-        ├── Public/     # SingularisInteractionEditor.h + Factories
-        └── Private/    # SingularisInteractionEditor.cpp + Factories
-```
+插件由运行时部分与编辑器部分组成：运行时部分承载全部逻辑；编辑器部分承载资产创建入口、资产行为与蓝图节点，且不参与烘焙产物。运行时部分不依赖系列内其他插件，移除其他插件不影响其编译与运行。
 
 ## 一、 设计目标与边界 (Design Goals & Boundaries)
 
-### 1. 设计目标
+### 1. 设计目标 (Design Goals)
 
 | 目标 | 实现手段 |
 | --- | --- |
-| **三元分离 (Logic — Presentation — Control)**：三类职责分离且依赖单向 | 逻辑端不含输入与 UI 代码；表现端只经两个视图接口订阅状态与事件；控制端经网络边界向逻辑端提交请求（见 2.1） |
-| **行为中性 (Behavior Neutrality)**：插件不规定“交互做什么”，只规定“交互如何发生” | 交互内容收口于 `USingularisInteractionStrategy` 抽象基类的 `Execute` |
-| **数据驱动 (Data-Driven)**：策划在编辑器中完成装配，无需改动 C++ | `EditInlineNew` + `Instanced` 策略对象、`TMap<FGameplayTag, FSingularisInteractionStrategyPipeline>` 管线映射、`FComponentReference` 组件引用 |
-| **零紧耦合 (Zero Tight Coupling)**：表现层不依赖具体控件类型 | 视图经 `ISingularisInteractionViewInterface` / `ISingularisInteractorViewInterface` 两个**接口契约 (Interface Contract)** 接入，任意 `UObject` 均可作为视图 |
-| **服务器权威 (Server Authority)**：业务副作用只在服务器结算 | `TryInteraction` 标注 `BlueprintAuthorityOnly`，经由 `Server` `Reliable` `WithValidation` RPC 过桥 |
-| **网络复制内建 (Built-in Replication)**：策略对象作为一等子对象参与复制与 RPC 路由 | 子对象复制列表（`AddReplicatedSubObject`）+ 策略基类覆写 `IsSupportedForNetworking` / `GetFunctionCallspace` / `CallRemoteFunction` |
-| **蓝图完整暴露 (Blueprint Parity)**：C++ 能力全部可由蓝图驱动与扩展 | `BlueprintNativeEvent` SPI、`BlueprintCallable` / `BlueprintPure` API、中文 `DisplayName` 元数据 |
+| **三元分离 (Logic — Presentation — Control)** | 逻辑端不含输入与界面逻辑；表现端只经两个视图契约订阅状态与事件；控制端经提交入口向逻辑端提交意图（见 二.1） |
+| **意图中性 (Intent Neutrality)** | 控制端到逻辑端只传递意图与开放标签；手势识别不进入协议；AI 与玩家使用同一协议（见 三.1） |
+| **行为中性 (Behavior Neutrality)** | 不规定交互做什么，也不规定交互如何推进：副作用收口于响应的单一入口与**声明式分派 (Declarative Dispatch)**，过程规则收口于会话族（见 四.4、四.5） |
+| **词汇开放 (Open Vocabulary)** | 意图域与事件域构成独立标签命名空间；新增形态等价于新增会话类型，新增语义等价于新增标签，框架无需改动（见 二.5） |
+| **数据驱动 (Data-Driven)** | 会话、响应、行为与查询器以内联实例对象配置；管线以策略标签映射装配；装配在编辑期内完成（见 三.5） |
+| **零紧耦合 (Zero Tight Coupling)** | 表现只依赖视图契约，任意对象均可作为视图实现，不限定控件类型（见 四.8） |
+| **单一会话真相 (Single Session Truth)** | 会话机与会话对象只在交互组件裁决；计时、窗口与阈值以其时钟强制；表现端不参与结算（见 五.6） |
+| **事件流 (Event Stream)** | 会话事件经事件分发器本地广播并通知世界子系统；会话与响应不自行组网（见 五.4） |
+| **本地零延迟 (Local Responsiveness)** | 本地玩家在本地派生与逻辑端同一实现的**本地镜像 (Local Mirror)** 并就地推进，产出零延迟本地会话流；不消费会话端状态（见 五.5） |
+| **AI 一等公民 (AI Parity)** | 交互者可为任意 Actor；玩家、AI 与脚本共用同一提交入口、同一会话机与同一时钟（见 五.2） |
+| **蓝图完整暴露 (Blueprint Parity)** | 执行语义可经蓝图覆写与扩展；查询型接口无副作用（见 七.6） |
 
-### 2. 边界（非目标）
+### 2. 边界与非目标 (Boundaries & Non-Goals)
 
-- 不实现任何具体交互行为，不提供开箱即用的“拾取/开门/乘坐”逻辑。
-- 不管理玩家状态、背包、任务等业务数据，不与任何 Singularis 业务插件通信。
-- 不规定 UI 布局与表现：插件提供默认控件类与可选图标资源，具体布局由项目侧的视图实现决定。
-- 不实现命中过滤的业务规则（如队伍、阵营、权限）；过滤应由项目侧覆写查询器或策略实现。
-- 不绑定具体输入设备与按键，输入映射由 `UInputMappingContext` 与 `FSingularisInteractorInput` 数据配置。
+- 不实现具体交互行为，不提供拾取、开关、乘坐等成品逻辑。
+- 不管理玩家状态、背包、任务等业务数据，不与系列内其他业务插件通信。
+- 不规定界面布局与表现样式；插件提供默认视图基类与可选图标资源，具体表现由项目侧视图实现决定。
+- 不实现命中过滤的业务规则（队伍、阵营、权限等）；过滤由项目侧以查询器或响应实现。
+- 不绑定具体输入设备与按键；玩家路径的键位与触发器塑形由输入映射资产配置。
+- 不提供回滚、输入缓冲重放与预测和解：本地会话就地推进，不做物理级回滚。
 
 ## 二、 架构总览 (Architecture Overview)
 
-### 1. 系列标准模式：逻辑 — 表现 — 控制 (Logic — Presentation — Control)
+### 1. 三元分离 (Logic — Presentation — Control)
 
-`Singularis` 系列以**逻辑 (Logic) — 表现 (Presentation/UI) — 控制 (Control/Input)** 三元结构作为标准模式：逻辑端承载领域状态与权威结算，表现端只读消费状态与事件，控制端采集输入并跨网络边界提交请求。本插件是该模式在交互域的实例，可作为新插件对齐的模板。
-
-| 维度 | 职责 | 本插件载体 | 对外契约 |
+| 维度 | 职责 | 载体 | 对外契约 |
 | --- | --- | --- | --- |
-| **逻辑 (Logic)** | 承载领域状态与权威结算，不感知输入设备与表现层 | `USingularisInteractionComponent`、`USingularisInteractionStrategy`、`USingularisInteractionBehaviorStrategy`、`USingularisInteractionSubsystem` | 状态访问器（`Enabled` / `Hovered`）、事件分发器、`TryInteraction`（`BlueprintAuthorityOnly`）、策略与行为策略 SPI |
-| **表现 (Presentation/UI)** | 消费状态与事件并渲染；只读，不参与判定 | `ISingularisInteractionViewInterface`、`ISingularisInteractorViewInterface`、`USingularisInteractionWidgetComponent`、`USingularisInteractorWidgetComponent`、两个默认控件 | 两个视图接口：全量刷新（`OnRefresh`）+ 增量事件 |
-| **控制 (Control/Input)** | 采集输入、锁定目标、跨网络边界提交请求 | `USingularisInteractorComponent`、`USingularisInteractionQueryer`、`FSingularisInteractorInput` | 增强输入绑定、`GetCurrentTarget`、事件分发器、`Server_RequestInteraction` RPC |
+| **逻辑 (Logic)** | 承载会话状态与结算；不感知输入设备与表现层 | 交互组件、会话对象、响应与行为对象、世界子系统 | 状态访问器、事件分发器、意图接收入口、会话原型查询、会话与响应扩展接口 |
+| **表现 (Presentation)** | 消费状态与事件并渲染；只读，不参与判定 | 两个视图契约、两个观察者组件、两个默认视图基类 | 全量刷新与增量事件（含统一会话事件入口） |
+| **控制 (Control)** | 采集来源事件、锁定目标、翻译为意图并提交 | 交互者驱动端、驱动器族、目标查询器、输入绑定配置 | 目标锁定与外部注入、意图提交入口、本地会话流 |
 
-依赖方向与部署约定（本插件的实现方式）：
+依赖方向与部署约定：
 
-- **控制 → 逻辑：** 经网络边界单向提交（`Server_RequestInteraction` → `TryInteraction`）；悬浮状态由控制端在本地写入（`SetHovered`），该状态不参与逻辑结算。
-- **逻辑 → 表现、控制 → 表现：** 均为“绑定后全量拉取 + 订阅增量事件”的单向推送；框架不向表现端提供回写通路（视图若需改变状态，须自行调用逻辑端或控制端的公开 API）。
-- **表现端成对部署：** 目标侧表现（`USingularisInteractionWidgetComponent`）观察逻辑端组件；玩家侧表现（`USingularisInteractorWidgetComponent`）观察控制端组件。
-- **逻辑不引用控制与表现：** 逻辑端组件与策略基类不含输入、控件与摄像机相关代码；控制端不依赖具体视图类型。
+- **控制到逻辑：** 意图经提交入口送往逻辑端，经世界级单一入口抵达会话端；控制端只读读取逻辑端会话原型，用于派生本地镜像。
+- **逻辑到表现、控制到表现：** 均为「绑定后全量拉取加订阅增量事件」的单向推送；框架不向表现端提供回写通路。
+- **表现端成对部署：** 目标侧观察者观察逻辑端，玩家侧观察者观察控制端。
+- **逻辑端不引用控制与表现：** 会话与响应不含输入、控件与摄像机相关逻辑；控制端不依赖具体视图类型。
 
-### 2. 分层结构
+### 2. 分层结构 (Layering)
 
-| 维度 | 层 | 类型 | 说明 |
+| 层 | 维度 | 内容 |
+| --- | --- | --- |
+| 数据层 | 共用 | 意图、会话上下文与会话事件、会话记录、策略管线、输入绑定、原生标签 |
+| 对象层 | 控制 | 驱动器族与目标查询器，以交互者驱动端的内联子对象存在 |
+| 对象层 | 逻辑 | 会话族、响应、行为，以管线或交互组件的内联子对象存在，可被蓝图继承 |
+| 组件层 | 逻辑与控制 | 交互组件与交互者驱动端 |
+| 子系统层 | 逻辑 | 世界级几何体到交互组件的映射登记、意图单一入口、全局会话观察 |
+| 行为树层 | 控制 | AI 主张、供值与撤回任务 |
+| 视图层 | 表现 | 两个视图契约、两个观察者组件、两个默认视图基类 |
+
+### 3. 参与者职责 (Participants)
+
+| 参与者 | 维度 | 归属 | 职责 |
 | --- | --- | --- | --- |
-| 共用 | 数据层 | `USTRUCT` / `UENUM` / `FGameplayTag` | 管线、条目、上下文、查询参数与结果、输入映射、原生标签 |
-| 控制 / 逻辑 | 对象层 | `USingularisInteractionQueryer`（控制）、`USingularisInteractionStrategy` / `USingularisInteractionBehaviorStrategy`（逻辑） | 以 `Instanced` 内联子对象形式存在的行为单元，可被蓝图继承 |
-| 逻辑 + 控制 | 组件层 | `USingularisInteractionComponent`（逻辑）、`USingularisInteractorComponent`（控制） | 交互语义的承载者与驱动者 |
-| 逻辑 | 子系统层 | `USingularisInteractionSubsystem` | 世界级几何体 ↔ 交互组件映射表 |
-| 表现 | 视图层 | 两个视图接口、两个控件组件、两个默认控件 | 状态与事件的消费端，仅依赖接口 |
+| 交互组件 | 逻辑 | 可交互 Actor 的组件 | 维护启用与悬浮状态；以封闭转移核管理交互者会话；派生会话实例并驱动其生命周期；分发会话事件至响应；广播会话事件并通知世界子系统；登记几何体映射 |
+| 交互者驱动端 | 控制 | 任意 Actor（控制器、Pawn、AI）的组件 | 逐帧目标锁定或接受外部注入；经驱动器把来源事件翻译为意图并提交；本地玩家就地派生并推进镜像会话、产出本地会话流；订阅目标事件转发会话端事件供其余交互者观察 |
+| 输入源适配器 | 控制 | 交互者驱动端的内联子对象 | 输入源适配的结构扩展点：装配、卸载、目标变更通知 |
+| 玩家路径输入适配器 | 控制 | 交互者驱动端的内联子对象 | 玩家路径适配：输入动作翻译为中性意图，含映射上下文挂卸、连续值节流与死区 |
+| 交互会话 | 逻辑 | 管线的内联子对象 | 会话推进规则单元：消费意图与时钟，产出事件与结算；会话端与镜像端运行同一实现 |
+| 内建会话族（瞬时、长按、连点、轴积分、拖动、脉冲） | 逻辑 | 管线的内联子对象 | 覆盖一次性触发、按住计时、窗口计数、连续量累积、绝对跟踪与脉冲蓄能六类过程规则 |
+| 交互响应 | 逻辑 | 管线的内联子对象 | 副作用单元：以单一入口消费统一事件流，事件经声明式分派落地 |
+| 行为 | 逻辑 | 交互组件的内联子对象 | 状态语义执行单元，响应启用、禁用、悬浮、未悬浮四类边沿 |
+| 目标查询器 | 控制 | 交互者驱动端的内联子对象 | 目标搜索算法；基类实现为单次射线查询 |
+| 世界子系统 | 逻辑 | 世界 | 几何体映射登记与反查；意图单一入口；全局会话事件观察 |
+| 目标侧观察者组件 | 表现 | 可交互 Actor 的组件 | 实例化视图、装配提示范围重叠、订阅交互组件事件并推送表现 |
+| 玩家侧观察者组件 | 表现 | 玩家 HUD | 实例化视图、订阅目标变更与交互者会话流并推送表现 |
+| 行为树任务（主张、供值、撤回） | 控制 | 行为树 | AI 的主张等待、逐帧供值与撤回 |
+| 默认视图基类（目标侧、玩家侧） | 表现 | 视口或观察者组件 | 视图契约的空实现基类，供项目侧蓝图或 C++ 子类覆写 |
+| 插件设置 | 共用 | 项目设置 | 插件级设置入口，聚合于系列分类之下 |
 
-### 3. 核心类职责总表
+### 4. 运行结构 (Runtime Structure)
 
-| 类 | 维度 | 基类 | 挂载点 | 职责 |
-| --- | --- | --- | --- | --- |
-| `USingularisInteractionComponent` | 逻辑 | `UActorComponent` | 可交互 Actor | 维护启用与悬浮状态；按标签层级分发交互策略管线；驱动行为策略；登记几何体映射与策略子对象 |
-| `USingularisInteractorComponent` | 控制 | `UActorComponent` | `APlayerController` | 逐帧视线查询；维护当前锁定目标与悬浮副作用；动态切换输入映射上下文；将本地输入经 RPC 转交服务器 |
-| `USingularisInteractionQueryer` | 控制 | `UObject` | 交互者组件的内联子对象 | 目标搜索算法；默认实现为单次 LineTrace |
-| `USingularisInteractionStrategy` | 逻辑 | `UObject` | 交互组件的内联子对象 | 触发语义执行单元，按标签层级匹配后依次执行 |
-| `USingularisInteractionBehaviorStrategy` | 逻辑 | `UObject` | 交互组件的内联子对象 | 状态语义执行单元，响应启用、禁用、悬浮、未悬浮 |
-| `USingularisInteractionSubsystem` | 逻辑 | `UWorldSubsystem` | 世界 | 登记碰撞组件到交互组件的映射，供查询器命中的几何体反查交互语义 |
-| `USingularisInteractionWidgetComponent` | 表现 | `UActorComponent` | 可交互 Actor | 目标侧观察者：实例化视图、装配提示范围重叠、订阅交互组件事件并推送 |
-| `USingularisInteractorWidgetComponent` | 表现 | `UActorComponent` | `APlayerController` | 玩家侧观察者：实例化视图、订阅交互者组件事件并推送 |
-| `USingularisInteractionWidget` / `USingularisInteractorWidget` | 表现 | `UUserWidget` | 视口 / 控件组件 | 默认视图实现，C++ 中为空实现，供蓝图或 C++ 子类覆写 |
-| `USingularisInteractionSettings` | 共用 | `UDeveloperSettings` | 项目设置 | 插件级设置入口，聚合于 `Singularis` 分类 |
-
-### 4. 运行结构图
-
-```
-[本地客户端 Local Client]
-USingularisInteractorComponent  (挂在 APlayerController)
- ├─ TickComponent → Query()
- │    └─ USingularisInteractionQueryer.Query()
- │         LineTrace(ECC_GameTraceChannel1, TraceDistance)
- │              ▼
- │       FSingularisInteractionQueryerResult
- │         └─ SetQueryerResult() ─→ ApplyQueryerResult()
- │              ├─ 旧目标 SetHovered(false) / 新目标 SetHovered(true)
- │              ├─ RefreshInput()（添加 / 移除 UInputMappingContext）
- │              └─ OnInteractionTargetChangedEvent ─→ 交互者视图
- ├─ EnhancedInput Started → HandleInteractionAction()
- │         ├─ OnInteractionTriggeredEvent ─→ 交互者视图
- │         └─ Server_RequestInteraction (Server / Reliable / WithValidation)
- │                                                    │
-[服务器 Server]                                       ▼
-USingularisInteractionComponent.TryInteraction(StrategyTag, PlayerController, InputValue)
- ├─ OnInteractionEvent.Broadcast()  ─→ 交互控件组件 → 交互视图
- ├─ 组装 FSingularisInteractionStrategyContext
- └─ 按标签层级匹配 InteractionStrategyPipelineMapping
-      └─ 逐条 Strategy.Execute(Context)   ← 项目侧副作用；可经子对象 RPC 回传表现
-```
-
-图中各参与者与标准模式三元的对应：`USingularisInteractionComponent` 与策略对象为逻辑端，`USingularisInteractorComponent`（含查询器与输入绑定）为控制端，两个控件组件为表现端。
-
-### 5. 标签空间 (Tag Namespace)
-
-原生标签在模块内以 `UE_DECLARE_GAMEPLAY_TAG_EXTERN` / `UE_DEFINE_GAMEPLAY_TAG_COMMENT` 声明（`Types/SingularisInteractionGameplayTags.h` / `.cpp`）：
-
-| 标识符 | 标签 | 用途 |
+| 端 | 阶段 | 行为与产出 |
 | --- | --- | --- |
-| `SingularisInteraction` | `Singularis.Interaction` | 交互域根标签 |
-| `SingularisInteraction_Strategy` | `Singularis.Interaction.Strategy` | 策略域根标签 |
-| `SingularisInteraction_Strategy_Default` | `Singularis.Interaction.Strategy.Default` | 默认策略标签，绑定默认输入动作 `IA_Interaction` |
+| 本地玩家 | 目标锁定 | 逐帧查询视线目标；目标迁移时向旧目标提交撤回、冲刷输入适配器、解绑旧目标事件、迁移悬浮状态并广播目标变更 |
+| 本地玩家 | 本地会话 | 以会话原型派生镜像实例并逐帧就地推进；不与会话端交互；产出本地会话流供玩家侧表现使用 |
+| 本地玩家 | 输入翻译与提交 | 来源事件翻译为意图；连续值经节流与死区抑制；提交入口执行单驱动卫语句后派生本地会话并经世界子系统提交 |
+| 会话端 | 会话建立 | 主张且无既有会话时触发：管线匹配、开始判据、派生会话专属实例、广播建立事件并启动会话 |
+| 会话端 | 会话推进 | 其余意图转发至会话对象；会话对象经发射通道产出事件与结算；会话事件经事件分发器广播并通知世界子系统 |
+| 会话端 | 会话收尾 | 会话达成或中止，或框架策略（交互者失效、组件禁用、目标迁移）触发结算；结算幂等 |
 
-`InteractionStrategyPipelineMapping` 与 `FSingularisInteractorInput::StrategyTag` 均带 `Categories = "Singularis.Interaction.Strategy"` 与 `ForceSelection = "true"` 元数据，编辑器侧限定在策略子树内取值。
+### 5. 词汇空间 (Vocabulary Space)
 
-## 三、 核心数据模型 (Data Model)
+全部交互词汇位于单一标签根之下，分为意图域、事件域与策略域三个子域。
 
-### 1. 交互策略管线 (Interaction Strategy Pipeline)
-
-`FSingularisInteractionStrategyEntry`：单条策略条目。
-
-| 字段 | 类型 | 语义 |
+| 域 | 成员 | 语义 |
 | --- | --- | --- |
-| `StrategyName` | `FText` | 编辑器展示名，同时作为管线数组的 `TitleProperty` |
-| `StrategyDescription` | `FText` | 策略说明 |
-| `Strategy` | `USingularisInteractionStrategy*`（`Instanced`） | 策略实例，可在编辑器内联创建 |
+| 交互域（根：Singularis.Interaction） | — | 全部交互词汇的根 |
+| 意图域（根：Singularis.Interaction.Intent） | .Press | 主张：唯一的会话建立触发 |
+| 意图域 | .Release | 撤回：结束本次参与 |
+| 意图域 | .Value | 连续值：轴值与力度 |
+| 事件域（根：Singularis.Interaction.Event） | .Begin | 会话建立（离散） |
+| 事件域 | .Progress | 会话推进（唯一连续事件） |
+| 事件域 | .Settle | 会话定格（离散；绝对跟踪类交互松手后的中间态落定） |
+| 事件域 | .Complete | 会话达成（离散） |
+| 事件域 | .Cancel | 会话中止与准入拒绝（离散） |
+| 策略域（根：Singularis.Interaction.Strategy） | .Default | 默认策略标签，绑定默认输入动作 |
 
-`FSingularisInteractionStrategyPipeline`：一组有序策略。
+约定：
 
-| 字段 | 类型 | 语义 |
+- 领域扩展由项目侧以子标签进行：意图域扩展新的中性词汇，事件域扩展领域事件（例如喷溅），二者均无需改动框架。
+- 策略标签在编辑期内限定于策略子树取值，管线映射键与输入绑定共用该限定；映射键与触发标签按层级匹配，映射键为触发标签的自身或祖先时命中，同一标签命中多个映射时取首个。
+- 会话事件订阅标签在编辑期内限定于事件域子树取值，会话事件节点新建时默认订阅事件域达成；域外标签不属会话事件词汇，编译期告警且不会被分派。
+- 事件域中以推进为唯一连续事件，其余事件一律视为离散事件；该分界决定传播通道。
+
+### 6. 响应者模型 (Responder Model)
+
+会话的全部可观察面由四类响应者分别承接，彼此独立、互不感知。
+
+| 响应者 | 触发源 | 载体 |
 | --- | --- | --- |
-| `Strategies` | `TArray<FSingularisInteractionStrategyEntry>` | 按数组顺序依次执行的策略集 |
-| `bSuspend` | `bool`（默认 `true`） | 声明为“是否在策略完成后挂起后续策略”；当前执行路径未读取该字段（见第八章） |
+| 状态行为 (Behavior) | 组件状态边沿：启用、禁用、悬浮、未悬浮 | 交互组件的内联子对象 |
+| 会话响应 (Response) | 会话事件：建立、推进、定格、达成、中止 | 会话定义内的有序响应集 |
+| 全局响应 (Global Responder) | 会话事件的世界级分发 | 世界子系统的全局事件分发器，任意对象均可订阅 |
+| 表现响应 (View) | 全量刷新与增量事件（会话流或本地会话流） | 两个视图契约与两个观察者组件 |
 
-`FSingularisInteractionStrategyEntry` 之外，交互组件另持有 `FSingularisInteractionBehaviorStrategyEntry`（字段：`BehaviorStrategyName`、`BehaviorStrategyDescription`、`BehaviorStrategy`），结构与策略条目一致，用于状态语义而非触发语义。
+## 三、 核心数据契约 (Core Data Contracts)
 
-### 2. 交互策略上下文 (Strategy Context)
+### 1. 交互意图 (Intent)
 
-`FSingularisInteractionStrategyContext`：由 `USingularisInteractionComponent::TryInteraction` 组装，描述一次触发中的身份与输入。
+控制端到逻辑端的最小协议单元，由意图标签与中性量值两部分构成。
 
-| 字段 | 类型 | 来源 |
-| --- | --- | --- |
-| `Controller` | `AController*` | RPC 传入的 `APlayerController` |
-| `Instigator` | `APawn*` | `Controller->GetPawn()` |
-| `Avatar` | `AActor*` | 交互组件宿主 `GetOwner()` |
-| `Target` | `TObjectPtr<AActor>` | 当前实现与 `Avatar` 相同，均为 `GetOwner()` |
-| `InteractionComponent` | `USingularisInteractionComponent*` | 触发本次交互的交互组件自身 |
-| `InputValue` | `FInputActionValue` | 触发交互的增强输入值 |
-
-### 3. 交互行为策略上下文 (Behavior Strategy Context)
-
-`FSingularisInteractionBehaviorStrategyContext`：由 `SetEnabled` / `SetHovered` 组装，描述副作用作用的交互目标。
-
-| 字段 | 类型 | 来源 |
-| --- | --- | --- |
-| `InteractionActor` | `AActor*` | 交互组件宿主 `GetOwner()` |
-| `InteractionComponent` | `USingularisInteractionComponent*` | 交互组件自身 |
-
-### 4. 查询参数与结果 (Queryer Params & Result)
-
-`FSingularisInteractionQueryerParams`：
-
-| 字段 | 类型 | 语义 |
-| --- | --- | --- |
-| `ViewLoc` | `FVector` | 视线起点（世界坐标），由 `APlayerController::GetPlayerViewPoint` 提供 |
-| `ViewRot` | `FRotator` | 视线朝向 |
-| `IgnoredActor` | `AActor*` | 需忽略的 Actor，当前实现传入交互者的 Pawn |
-
-`FSingularisInteractionQueryerResult`：
-
-| 字段 | 类型 | 语义 |
-| --- | --- | --- |
-| `InteractionActor` | `AActor*` | 命中的 Actor |
-| `InteractionComponent` | `USingularisInteractionComponent*` | 命中几何体上登记的交互组件 |
-| `ImpactPoint` | `FVector_NetQuantize` | 命中点（世界坐标） |
-
-两个成员函数：
-
-- `IsInteractionValid()`：`InteractionActor` 与 `InteractionComponent` 均有效时返回 `true`。
-- `operator==`：仅比较 `InteractionActor` 与 `InteractionComponent`，不比较 `ImpactPoint`；该比较是交互者组件状态幂等判定的依据——同一目标内的命中点变化不产生状态更新与事件广播。
-
-### 5. 交互者输入映射 (Interactor Input)
-
-`FSingularisInteractorInput`：把增强输入动作映射到交互策略标签。
-
-| 字段 | 类型 | 语义 |
-| --- | --- | --- |
-| `InputAction` | `UInputAction*` | 输入动作 |
-| `StrategyTag` | `FGameplayTag` | 该动作触发时作为 `TryInteraction` 的策略标签 |
-
-### 6. 交互模式枚举 (Interaction Mode)
-
-`ESingularisInteractionMode`：`Ray`（射线查询，显示名“射线”）、`Collision`（碰撞查询，显示名“碰撞”）。该枚举当前由查询器的 `SingularisInteractionMode` 属性声明配置入口，但基类实现未读取（见第八章）。
-
-## 四、 核心模块解析 (Core Module Breakdown)
-
-### 1. `USingularisInteractionComponent`（交互组件，目标侧）
-
-元数据：`UCLASS(Blueprintable, BlueprintType, ClassGroup = ("Singularis"), meta = (BlueprintSpawnableComponent, DisplayName = "引力奇点交互组件"))`，继承 `UActorComponent`。
-
-构造期设定：`SetIsReplicatedByDefault(true)`、`bReplicateUsingRegisteredSubObjectList = true`、关闭 Tick（`bCanEverTick = false`、`bStartWithTickEnabled = false`）、`bAutoActivate = true`。
-
-**配置参数**
-
-| 参数 | 类型 | 语义 |
-| --- | --- | --- |
-| `TargetComponentReferences` | `TArray<FComponentReference>` | 交互目标组件引用（`UseComponentPicker`，`AllowedClasses = /Script/Engine.SceneComponent`），用于在映射子系统登记归属；允许多个几何体指向同一交互组件 |
-| `InteractionStrategyPipelineMapping` | `TMap<FGameplayTag, FSingularisInteractionStrategyPipeline>` | 策略标签到管线的映射，触发时按标签层级筛选 |
-| `InteractionBehaviorStrategies` | `TArray<FSingularisInteractionBehaviorStrategyEntry>` | 行为策略集，响应启用与悬浮状态变化 |
-
-**状态与事件**
-
-| 成员 | 说明 |
+| 组成 | 说明 |
 | --- | --- |
-| `bIsEnabled`（默认 `true`） | 启用状态；私有普通成员，无 `UPROPERTY`，不参与复制 |
-| `bIsHovered`（默认 `false`） | 悬浮状态；同上 |
-| `OnInteractionEvent` | 开始交互时广播 |
-| `OnInteractionEnableEvent` / `OnInteractionDisableEvent` | 启用 / 禁用时广播 |
-| `OnInteractionHoverEvent` / `OnInteractionUnhoverEvent` | 悬浮 / 未悬浮时广播 |
+| 意图标签 | 意图域核心标签或项目侧领域扩展标签 |
+| 中性量值 | 与输入设备无关的量值载体，形态为布尔、一维、二维、三维四种；可分别读取幅值与带符号首分量 |
 
-**函数**
+约定语义与职责：
 
-| 函数 | 说明 |
+- 主张建立会话（唯一触发），撤回结束参与，连续值更新连续量。
+- 对不存在会话的撤回与连续值静默忽略，即幂等吞并。
+- 装箱职责在控制端，解释职责在逻辑端：控制端只保证量值的中性形态与符号方向，逻辑端按自身机制解释其含义。
+
+### 2. 会话上下文 (Session Context)
+
+宿主（会话端或镜像端）在会话每次生命周期调用前组装的上下文，字段语义如下。
+
+| 字段 | 语义 |
 | --- | --- |
-| `Enabled()` / `Hovered()` | `BlueprintPure` 状态访问器 |
-| `SetEnabled(bool)` / `SetHovered(bool)` | `BlueprintCallable`；先做幂等比较（状态未变化直接返回），随后广播对应事件，并逐条驱动行为策略的 `Enabled` / `Disabled` 或 `Hovered` / `Unhovered` |
-| `TryInteraction(StrategyTag, PlayerController, InputActionValue)` | `BlueprintAuthorityOnly`；广播 `OnInteractionEvent`，组装策略上下文，遍历映射并对满足 `Tag.MatchesTag(StrategyTag)` 的管线逐条调用 `Strategy->Execute(Context)` |
-| `BeginPlay()` | 依次执行：登记策略子对象到复制列表 → 将 `TargetComponentReferences` 指向的 `UPrimitiveComponent` 登记进映射子系统 |
-| `RegisterInteractionSubObjects()` | 内部函数，仅在 `HasAuthority()` 时向子对象复制列表登记全部交互策略与行为策略实例 |
+| 交互者 | 发起交互的主体（控制器、Pawn 或任意对象） |
+| 实例者 | 由交互者解析得到的 Pawn：交互者本身为 Pawn 时取其自身，为控制器时取其 Pawn |
+| 宿主 | 承载交互组件的 Actor |
+| 目标 | 当前实现与宿主相同 |
+| 所属策略标签 | 会话对应的策略标签 |
+| 累计时长 | 会话累计时长（秒），由宿主逐帧推进 |
 
-**标签匹配语义**：`Tag.MatchesTag(StrategyTag)` 中的 `Tag` 为映射键。`A.MatchesTag(B)` 在 `A` 等于 `B` 或 `A` 是 `B` 的后代时为真，因此映射键是“被触发标签的等值或后代”。触发 `Singularis.Interaction.Strategy` 会执行映射中所有以该前缀登记的管线；触发 `Singularis.Interaction.Strategy.Default` 只执行 `Default` 及其子级登记项。映射遍历顺序为 `TMap` 迭代顺序，同一次触发可命中多个管线。
+### 3. 会话事件 (Session Event)
 
-**行为策略的驱动端**：`SetEnabled` / `SetHovered` 在调用端就地执行行为策略副作用，不经过 RPC；跨端一致性由调用方决定。当前默认路径中，悬浮状态由本地交互者组件驱动（见 5.2），即悬浮副作用在本地客户端结算。
+逻辑端到响应与表现端的统一事件单元。
 
-### 2. `USingularisInteractorComponent`（交互者组件，玩家侧）
+| 字段 | 语义 |
+| --- | --- |
+| 事件标签 | 事件域核心标签或项目侧领域扩展标签 |
+| 归一化量值 | 归一化进度（0 至 1）；达成收敛为 1，中止归零 |
+| 附加标签 | 开放负载：随事件携带的附加语义标签容器 |
+| 上下文快照 | 事件发生时刻的会话上下文 |
 
-元数据：`UCLASS(Blueprintable, BlueprintType, ClassGroup = ("Singularis"), meta = (BlueprintSpawnableComponent, DisplayName = "引力奇点交互者组件"))`，继承 `UActorComponent`。
+约定：推进是唯一连续事件，其余事件一律视为离散事件。响应与表现端据此分界选择消费方式。
 
-构造期设定：`SetIsReplicatedByDefault(true)`、开启 Tick、`bAutoActivate = true`；创建默认查询器子对象 `"InteractionQueryer"`；通过 `ConstructorHelpers` 解析默认资产 `IMC_Default_SingularisInteractor` 与 `IA_Interaction`，并将 `IA_Interaction` 与 `Singularis.Interaction.Strategy.Default` 组成默认输入项写入 `InteractorInputs`。
+### 4. 会话记录 (Session Record)
 
-`BeginPlay` 中执行 `checkf(GetOwner()->IsA<APlayerController>(), ...)`，即该组件必须挂在 `APlayerController` 上；随后缓存宿主控制器、绑定输入、刷新输入映射上下文。
+交互组件维护的会话推进状态。
 
-**配置参数**
+| 字段 | 语义 |
+| --- | --- |
+| 交互者 | 会话表键（弱引用） |
+| 策略标签 | 会话对应的策略标签 |
+| 会话实例 | 会话专属运行期实例（推进规则对象） |
+| 累计时长 | 会话累计时长（秒） |
 
-| 参数 | 类型 | 默认 | 语义 |
+约定：会话表只包含活跃会话，随会话建立与结算增删。
+
+### 5. 策略管线 (Strategy Pipeline)
+
+管线即**会话定义 (Session Definition)**：会话推进的唯一装配单元，由会话原型与有序响应集组成。
+
+| 组成 | 语义 |
+| --- | --- |
+| 条目 | 单条响应条目：名称、描述与响应实例；行为条目结构一致 |
+| 会话原型 | 会话对象原型，会话建立时派生专属实例 |
+| 有序响应集 | 按数组顺序依次驱动的响应集合 |
+
+管线以策略标签为键装配在交互组件；会话建立时按键的层级匹配取得首个命中的管线。
+
+### 6. 输入绑定 (Input Binding)
+
+玩家路径输入适配器的配置单元，把输入动作映射为策略标签与意图形态。
+
+| 字段 | 语义 |
+| --- | --- |
+| 输入动作 | 输入资产中的动作引用 |
+| 策略标签 | 动作映射的策略标签 |
+| 携带连续值 | 是否把动作的连续值翻译为连续意图（轴类交互开启） |
+
+## 四、 核心机制 (Core Mechanisms)
+
+### 1. 交互组件 (Interaction Component)
+
+**配置**
+
+| 配置 | 语义 |
+| --- | --- |
+| 目标几何引用集 | 参与命中的几何体组件引用列表，用于在映射登记中声明归属 |
+| 策略标签到管线映射 | 会话可用的全部管线；键限定于策略子树，层级匹配取首个命中 |
+| 行为集 | 响应启用与悬浮状态变化的行为集合 |
+
+**状态**
+
+| 状态 | 语义 |
+| --- | --- |
+| 启用状态 | 默认启用；禁用时拒绝主张（广播取消反馈）并取消全部活跃会话 |
+| 悬浮状态 | 默认未悬浮 |
+| 活跃会话表 | 键为交互者的会话记录表，非空时启用组件逐帧推进 |
+| 会话事件分发器 | 会话端全事件流（本地广播） |
+| 状态边沿分发器 | 启用、禁用、悬浮、未悬浮四个边沿 |
+
+**行为**
+
+| 行为 | 语义 |
+| --- | --- |
+| 状态访问与写入 | 读取启用与悬浮；写入先做幂等比较，再广播边沿并逐条驱动行为；禁用时先取消全部活跃会话 |
+| 会话原型查询 | 返回首个匹配管线的会话原型，供交互者端派生镜像 |
+| 意图接收 | 意图入口：主张在无既有会话时走建立路径，其余意图转发至会话对象 |
+| 逐帧推进 | 两遍式：第一遍仅推进会话时钟并生成上下文快照（不调用外部）；第二遍驱动会话推进（回调可反向变更会话表，故迭代其副本）；最后统一结算失效会话 |
+
+**会话宿主契约**
+
+会话对象经宿主契约发射，宿主按会话实例反查会话记录后落地：进度类发射先回写量值再以快照广播，其余标签走离散路径；达成与中止类发射定位会话后结算，均幂等。迟到的发射在反查失败时静默吞并。
+
+**幂等与防重入约定**
+
+结算与推进均以会话记录快照驱动，不回读会话表；响应回调可能反向变更会话表，故广播与驱动前先行快照，逐帧迭代会话表副本。
+
+### 2. 交互者驱动端 (Interactor Driver End)
+
+**配置**
+
+| 配置 | 语义 |
+| --- | --- |
+| 目标查询器 | 内联实例对象，默认在构造期创建；留空表示启用外部注入目标模式（AI 与脚本） |
+| 输入源适配器 | 内联实例对象，默认玩家路径适配器；AI 与脚本可留空 |
+
+**状态**
+
+| 状态 | 语义 |
+| --- | --- |
+| 宿主控制器缓存 | 宿主玩家控制器，惰性解析，非玩家交互者为空 |
+| 当前目标状态 | 含外部注入的目标状态；幂等比较只比较目标与目标组件，不比较命中点 |
+| 单驱动标记 | 同一交互者同一时刻仅驱动一个目标会话；标记与其对应的目标、策略标签用于结算清理 |
+| 镜像状态 | 镜像实例与累计时长 |
+
+**行为**
+
+| 行为 | 语义 |
+| --- | --- |
+| 目标访问与注入 | 读取当前目标；外部注入或清除目标，供 AI、脚本与测试使用 |
+| 意图提交 | 唯一提交入口：单驱动卫语句 → 本地会话派生与本地会话流 → 世界子系统单一入口 |
+| 会话便捷入口 | 主张与撤回的便捷封装，供行为树与脚本使用 |
+| 宿主解析 | 宿主控制器解析与本地玩家判据，惰性缓存 |
+| 逐帧推进 | 视线查询（仅本地玩家且配置查询器）与镜像推进两部分 |
+| 目标结果写入与副作用 | 幂等写入目标状态；目标迁移时向旧目标提交撤回、冲刷输入适配器、解绑旧目标事件、迁移悬浮状态并通知适配器刷新装配 |
+| 目标事件回调 | 仅关注本交互者的会话；本地玩家不消费会话端事件，其余交互者结算先冲刷驱动后直接转发 |
+
+**镜像运行规则**
+
+镜像在建立会话后立即派生并就地推进，逐帧接受意图与时钟；会话原型不可用时驱动即刻冲刷（本地无会话流可产出）。镜像不与会话端交互：不读会话状态、不对齐；意图经世界子系统单一入口上行。
+
+### 3. 输入源适配 (Input Adaptation)
+
+输入源适配器是控制端的结构扩展点，扩展点为装配、卸载与目标变更通知三处（C++ 覆写 `_Implementation`，蓝图覆写同名事件）；条件不足时静默空转。
+
+玩家路径输入适配器把输入动作翻译为中性意图：
+
+| 输入阶段 | 产出意图 | 说明 |
+| --- | --- | --- |
+| 开始 | 主张 | 会话建立的唯一触发 |
+| 完成或取消 | 撤回 | 结束本次参与 |
+| 持续触发 | 连续值 | 仅对配置为携带连续值的绑定生效，经节流与死区双重抑制 |
+
+约定：
+
+- 量值按输入动作的值类型装箱为中性形态（布尔、一维、二维、三维），保留符号与方向，不坍缩为幅值。
+- 连续值提交受节流间隔与死区约束；死区的判定量值按形态取值：标量型取带符号分量，其余取幅值。
+- 输入侧塑形（长按触发器、脉冲触发器等）仍由输入资产承担，属于手感预筛的表现手段；玩法时序由逻辑端会话推进，二者不重复计时。
+
+### 4. 交互会话族 (Session Family)
+
+会话对象是会话推进规则的执行单元，会话端与镜像端运行同一实现；会话不声明运行策略，镜像端一律在会话建立后即刻派生并推进。
+
+**生命周期扩展点**（均有空实现或肯定默认实现）
+
+| 扩展点 | 默认实现 | 语义 |
+| --- | --- | --- |
+| 开始判据 | 允许 | 允许会话开始（会话侧门控） |
+| 会话开始 | 空实现 | 会话开始（宿主已广播建立事件） |
+| 意图摄入 | 空实现 | 接收并处理意图 |
+| 逐帧推进 | 空实现 | 按帧推进 |
+| 会话收尾 | 空实现 | 达成或中止之后的收尾 |
+
+**发射通道**：发射会话事件、达成会话、中止会话三处；均经宿主契约路由，宿主失效时静默关闭。会话建立时以原型副本的方式派生专属实例，并装配宿主与保活判据。
+
+**内建会话族**
+
+| 会话 | 配置 | 语义 |
+| --- | --- | --- |
+| 瞬时 | 无 | 会话开始即达成；等价一次性触发 |
+| 长按 | 时长（默认 1.5 秒）、撤回是否取消（默认取消）、衰减速率（0 至 1 每秒，默认 0） | 按住计时达成；撤回默认取消会话，可配置为进度衰减，归零即中止（蓄力类交互） |
+| 连点 | 必要主张次数（默认 3，至少 2）、窗口时长（0.8 秒） | 会话建立即计第一声，窗口内累计主张达成；窗口自最近一次主张起算，超时中止 |
+| 轴积分 | 模式（积分或峰值）、阈值 | 消费连续意图累积量值，达阈值达成；积分模式取带符号标量（摇柄、转盘，正负可逆），峰值模式取幅值（按压深度） |
+| 拖动 | 灵敏度、松手是否达成（默认达成）、归零是否中止（默认中止） | 绝对跟踪带符号标量，进度可正可负并可停在中途；松手广播定格事件并按配置达成（按住拖动、松手停在中途） |
+| 脉冲 | 单次注入量（0.25）、衰减速率（0.5 每秒）、归零是否中止 | 每次主张注入脉冲并逐帧衰减；达满达成，归零中止（能量水位型连点） |
+
+### 5. 交互响应与声明式分派 (Response & Declarative Dispatch)
+
+响应是会话事件的副作用执行单元，只消费会话语义，不感知事件如何产生。
+
+**唯一入口**：响应不含手工事件入口，事件经单一分派入口消费。分派入口在分派帧内写入当前会话事件、执行全部已声明处理器、随后恢复上一帧事件；发布方是交互组件的唯一调用点。
+
+**分派帧访问器**：处理期间可读取当前会话事件，并可按标签判定其是否命中给定订阅标签（层级匹配）。
+
+**声明式分派**：处理器只声明订阅的标签，命中判定与调用由框架承担。两条声明路径：
+
+| 路径 | 声明方式 | 调用单元 |
+| --- | --- | --- |
+| C++ | 在类体内以声明宏登记「标签到处理器」的映射 | 进程级静态注册表保存类与标签的解析器，首次查找时解析归表，随后按成员函数指针调用 |
+| 蓝图 | 在响应蓝图的**事件图 (Event Graph)** 内放置**会话事件节点 (Session Event Node)**，选择订阅标签，并从执行输出拉线写逻辑 | 编译器为事件节点生成独立入口函数（内部跳转事件图）；编译期由编辑器侧的编译钩子把「标签到事件函数名」回填进响应类默认对象，随资产序列化并参与烘焙；运行时按名解析并以无参方式直调 |
+
+分派约定：
+
+- **顺序**：沿类层级自派生向基类逐类执行；类内先执行宏登记处理器（按登记顺序），再执行蓝图声明处理器（同标签只保留首个，不保证顺序）。
+- **执行条件**：宏登记处理器可带任意签名；蓝图处理器必须无入参且无返回值（框架以无参方式直调），由编译钩子校验并告警。
+- **负载读取**：事件负载经分派帧访问器读取，不经处理器入参传递。
+- **惰性解析**：登记发生在静态初始化期，类系统与跨编译单元的标签常量均未就绪，故登记只提交解析器，首次查找时求值；解析后仍无效的声明被丢弃并告警。
+- **蓝图节点形态**：无执行输入；带订阅标签配置引脚（取值限定于事件域子树，新建节点默认订阅事件域达成；配置引脚不参与事件签名，不会被编译为事件参数）；执行输出即处理器逻辑起点；事件函数名由订阅标签推导（合法标识符形态并在类内去重），节点不提供重命名；事件节点不得添加参数；节点只允许放在响应蓝图的事件图内。
+- **基类约束**：会话事件节点必须派生自引擎开放导出的事件基类；派生自仅提供最小导出接口的自定义事件类会在链接期失败。
+- **永不组网**：表现由框架事件流承担；响应实例经类默认值构建。
+
+### 6. 行为 (Behavior)
+
+行为是状态语义的执行单元，位于交互组件，响应启用、禁用、悬浮、未悬浮四类边沿；不参与会话事件流。调用端就地执行，框架不持有其状态、不转发其副作用。
+
+### 7. 目标查询与几何映射 (Query & Mapping)
+
+| 项 | 语义 |
+| --- | --- |
+| 查询扩展点 | 目标搜索算法入口，输入当前查询结果与查询参数，输出候选目标 |
+| 基类实现 | 自视线起点单向射线查询，使用复杂碰撞与专用交互通道；命中后经世界子系统的映射登记反查交互组件 |
+| 查询距离 | 默认 200 厘米 |
+| 查询模式选择 | 已提供两种取值（射线、碰撞），基类实现固定为射线查询，不读取该选择项；碰撞模式未实现 |
+| 映射登记 | 几何体到交互组件的映射表：登记、反登记与反查；弱引用持有，重复登记覆盖，未登记反查幂等返回空 |
+
+### 8. 视图层 (View Layer)
+
+**两个视图契约**：表现端唯一依赖；实现者可为任意对象，不限于控件。全部方法为可覆写且可调用的执行语义。
+
+| 契约 | 方法语义 |
+| --- | --- |
+| 目标侧视图契约 | 全量刷新（启用与悬浮状态）；悬浮；未悬浮；进入范围；离开范围；会话事件 |
+| 玩家侧视图契约 | 全量刷新（当前目标）；目标变更；会话事件 |
+
+全量刷新是绑定后的首次投递入口；会话事件是统一事件入口：目标侧收会话端事件流，玩家侧收本地会话流。
+
+**两个观察者组件**：均为纯观察者。
+
+| 观察者 | 归属 | 关键配置 | 依赖方向 |
 | --- | --- | --- | --- |
-| `InteractionQueryer` | `USingularisInteractionQueryer*`（`Instanced`） | 构造期创建 | 目标搜索算法 |
-| `InputPriority` | `int32` | `10` | 添加映射上下文时的优先级 |
-| `InputMappingContext` | `UInputMappingContext*` | 默认资产 | 仅在锁定到有效目标期间挂载 |
-| `InteractorInputs` | `TArray<FSingularisInteractorInput>` | 默认 1 项 | 输入动作到策略标签的映射表 |
+| 目标侧观察者 | 可交互 Actor | 控件组件引用、提示范围引用、交互组件引用、视图类（需实现目标侧视图契约） | 订阅悬浮、未悬浮与会话事件 |
+| 玩家侧观察者 | 玩家 HUD | 是否自动创建视图（默认创建）、视图类（需实现玩家侧视图契约，仅在自动创建时生效） | 订阅目标变更与交互者会话流 |
 
-**状态与事件**
+目标侧观察者的装配会话：
 
-| 成员 | 说明 |
-| --- | --- |
-| `OwnerPlayerController` | `TWeakObjectPtr<APlayerController>`，宿主的弱引用 |
-| `CurrentQueryerResult` | 当前视线查询结果，纯本地状态，不参与复制 |
-| `OnInteractionTargetChangedEvent(OldTarget, NewTarget)` | 目标变更时广播 |
-| `OnInteractionTriggeredEvent(Target, StrategyTag)` | 发起交互请求时广播 |
+1. 创建视图：本地控制器检查、解析控件组件引用、创建控件实例；运行期复核控件类是否实现视图契约（编辑器选择器约束不足以在运行期成立）；以屏幕空间与关闭碰撞的形态装配。
+2. 装配提示范围：把提示范围几何体的交互通道响应设为忽略（避免遮挡视线查询），并绑定重叠回调；重叠对象为 Pawn、其控制器为本地控制器且挂有交互者组件时，向视图推送进入范围与离开范围。
+3. 观察交互组件：订阅悬浮、未悬浮与会话事件，随后以全量刷新投递一次启用与悬浮状态。
 
-**函数**
+玩家侧观察者在自动创建模式下创建视图并加入视口，随后订阅目标变更与会话流并投递一次全量刷新；关闭自动创建时不创建视图，接受外部注入，注入后自动投递一次全量状态。
 
-| 函数 | 说明 |
-| --- | --- |
-| `TickComponent` → `Query()` | 每帧执行；先校验本地控制器与查询器有效性，再取 `GetPlayerViewPoint` 构建查询参数（忽略目标为宿主 Pawn），执行查询并写入结果 |
-| `SetQueryerResult(Result)` | 幂等比较（`operator==`）后写入新结果，捕获旧结果并调用 `ApplyQueryerResult`，最后广播目标变更事件 |
-| `ApplyQueryerResult(OldResult)` | 旧目标有效则 `SetHovered(false)`；新目标有效则 `SetHovered(true)`；随后 `RefreshInput()` |
-| `RefreshInput()` | 有有效目标时 `AddMappingContext(InputMappingContext, InputPriority)`，否则 `RemoveMappingContext` |
-| `BindInput()` | 仅在本地控制器上，将 `InteractorInputs` 逐条以 `ETriggerEvent::Started` 绑定到 `UEnhancedInputComponent`，绑定函数为 `HandleInteractionAction`，`StrategyTag` 作为载荷传入 |
-| `HandleInteractionAction(ActionValue, StrategyTag)` | 校验本地环境与当前目标后，广播 `OnInteractionTriggeredEvent`，并调用 `Server_RequestInteraction` |
-| `Server_RequestInteraction` | `Server` `Reliable` `WithValidation` RPC；校验阶段目前仅检查目标组件有效性（源码中注明后续可补充距离校验）；实现阶段二次校验目标与宿主控制器，随后调用 `TargetInteractionComponent->TryInteraction(...)` |
-| `GetCurrentTarget()` | `BlueprintPure`，返回 `CurrentQueryerResult.InteractionComponent` |
+**默认视图基类**：目标侧与玩家侧各一，实现对应视图契约，全部方法为空实现，作为项目侧蓝图或 C++ 子类的挂载基类。
 
-**关键约束**：查询、状态写入、输入绑定、RPC 发送全部受 `IsLocalController()` 约束，因此每个客户端只运行自己的交互者逻辑，专用服务器不执行查询。
+### 9. 行为树任务 (Behavior Tree Tasks)
 
-### 3. `USingularisInteractionQueryer`（交互查询器）
-
-元数据：`UCLASS(Blueprintable, BlueprintType, EditInlineNew, CollapseCategories)`，继承 `UObject`。
-
-| 参数 | 类型 | 默认 | 语义 |
-| --- | --- | --- | --- |
-| `TraceDistance` | `float` | `200.0f`（厘米） | 射线距离 |
-| `SingularisInteractionMode` | `ESingularisInteractionMode` | `Ray` | 查询模式（当前基类实现未读取） |
-
-SPI：`Query(FSingularisInteractionQueryerResult& QueryerResult, const FSingularisInteractionQueryerParams& QueryerParams)`，`BlueprintNativeEvent`，返回是否命中有效可交互目标。
-
-基类实现流程：
-
-1. 由 `ViewLoc` 与 `ViewRot.Vector() * TraceDistance` 计算射线起止点。
-2. 构建 `FCollisionQueryParams`（`SCENE_QUERY_STAT(LineTrace)`，`bTraceComplex = true`）并忽略 `IgnoredActor`。
-3. 以 `ECC_INTERACTION`（源码内 `#define ECC_INTERACTION ECC_GameTraceChannel1`）执行 `LineTraceSingleByChannel`。
-4. 命中后取命中组件的宿主 Actor，经 `USingularisInteractionSubsystem::MappingComponent` 反查交互组件；任一环节无效则返回 `false`。
-5. 装配 `InteractionActor`、`InteractionComponent`、`ImpactPoint` 并返回 `true`。
-
-私有静态函数 `FindInteractionComponent(Actor, PrimitiveComponent)` 封装上述反查，要求世界上下文中存在交互子系统。
-
-### 4. `USingularisInteractionSubsystem`（交互子系统）
-
-元数据：`UCLASS(NotBlueprintable, BlueprintType, ClassGroup = ("Singularis"), meta = (BlueprintSpawnableComponent, DisplayName = "引力奇点交互子系统"))`，继承 `UWorldSubsystem`。
-
-数据成员为 `TMap<TWeakObjectPtr<UPrimitiveComponent>, TWeakObjectPtr<USingularisInteractionComponent>>`，键与值均为弱引用，对象销毁后自动失效，无需显式清理。
-
-| 函数 | 语义 |
-| --- | --- |
-| `RegisterMapping(PrimitiveComponent, InteractionComponent)` | 登记映射；重复登记同一碰撞组件时覆盖既有映射 |
-| `UnregisterMapping(PrimitiveComponent)` | 注销映射；未登记时幂等返回 |
-| `MappingComponent(PrimitiveComponent)` | 哈希查找 → 弱引用有效性检查 → 解引用；未登记或失效返回 `nullptr` |
-
-`Initialize` / `Deinitialize` 目前仅调用 `Super`。映射登记由交互组件的 `BeginPlay` 触发，仅在组件生命周期内执行一次；运行期新增或更换的几何体需由项目侧手动调用 `RegisterMapping`。
-
-### 5. `USingularisInteractionStrategy`（交互策略，触发语义）
-
-元数据：`UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)`，继承 `UObject`。
-
-SPI（均为 `BlueprintNativeEvent`）：
-
-| 接口 | 默认实现 | 语义 |
+| 任务 | 类型 | 语义 |
 | --- | --- | --- |
-| `CanExecute(const FSingularisInteractionStrategyContext&) const` | 返回 `true` | 判定执行前提；由子类覆写 |
-| `Execute(const FSingularisInteractionStrategyContext&)` | 空实现 | 执行交互副作用；由子类覆写 |
+| 主张任务 | 潜伏 | 解析黑板目标（交互组件或 Actor）；提交主张；观察交互者会话流：达成为成功、中止为失败；超时、交互者或目标失效为失败；任务中止时撤回并解绑 |
+| 供值任务 | 潜伏 | 解析黑板目标；可选先建立会话；逐帧或按间隔提交连续意图（量值取自黑板浮点键或常量）；达成为成功、中止为失败；供值时长耗尽时撤回并成功；任务中止时按配置撤回并解绑 |
+| 撤回任务 | 即时 | 解析黑板目标；提交撤回；立即成功或失败 |
 
-网络能力（为子对象 RPC 而覆写）：
+挂载要求：AI 控制器或其 Pawn 上挂有交互者驱动端。AI 经与玩家同一入口、同一会话机、同一时钟结算，长按类会话不可被 AI 以更短时长绕过。
 
-| 覆写 | 实现 |
+### 10. 设置与编辑器集成 (Settings & Editor Integration)
+
+插件级设置入口挂载于项目设置，聚合于系列分类之下；当前不含配置字段。
+
+编辑器部分提供六类资产的创建入口与资产行为：目标查询器、交互会话、交互响应、交互行为、目标侧视图与玩家侧视图，统一收纳于系列子菜单。
+
+## 五、 运行机制与数据流 (Runtime Mechanisms & Data Flow)
+
+### 1. 玩家通路 (Player Path)
+
+1. 输入资产产出开始、完成、取消与持续触发等来源事件。
+2. 玩家路径输入适配器把来源事件翻译为意图，连续值经节流与死区抑制。
+3. 交互者驱动端的提交入口执行：单驱动卫语句、镜像会话派生与本地会话流广播。
+4. 意图经世界子系统单一入口抵达会话端。
+
+### 2. AI 通路 (AI Path)
+
+1. 主张任务提交主张，进入与玩家同一提交入口。
+2. 会话端建立会话并推进；任务观察交互者会话流，达成转为成功、中止转为失败。
+3. 供值任务在轴类会话下建立会话并逐帧提交连续意图，供值时长耗尽或会话结算时终止。
+4. AI 与脚本亦可省略交互者驱动端，直接经世界子系统的唯一入口提交意图。
+
+### 3. 会话状态机 (Session Machine)
+
+转移字母表封闭为三个动词，其余语义经开放事件流透传。
+
+| 转移 | 触发与结果 |
 | --- | --- |
-| `GetWorld()` | 排除 CDO 后沿 `GetOuter()` 链取世界上下文 |
-| `IsSupportedForNetworking()` | 返回 `true` |
-| `GetFunctionCallspace(Function, Stack)` | 排除 CDO 后委托给 `GetOuter()`（组件 → 宿主 Actor） |
-| `CallRemoteFunction(...)` | 沿 Outer 链定位宿主 Actor 的 `UNetDriver`，调用 `ProcessRemoteFunction(Actor, Function, Parms, OutParms, Stack, this)`，将策略子对象自身作为路由对象传入 |
-| `GetLifetimeReplicatedProps(...)` | 仅调用 `Super`，供子类追加复制属性 |
+| 建立 | 主张且无既有会话：管线匹配、开始判据（拒绝即拒绝会话并广播取消反馈）、派生会话专属实例、广播并驱动建立事件、启动会话 |
+| 推进 | 其余意图转发至会话对象；会话对象经发射通道产出事件，经事件分发器广播 |
+| 达成与中止 | 会话达成或中止，或框架策略（交互者失效、组件禁用、目标迁移撤回）触发结算；幂等，重复结算静默吞并 |
+| 逐帧 | 仅会话存续期间启用；两遍式推进（快照与驱动），失效会话统一结算取消 |
 
-该组覆写使策略子类可以自行声明 `Server` / `Client` / `NetMulticast` RPC，并由宿主 Actor 的网络通道完成路由。
+### 4. 事件流 (Event Stream)
 
-### 6. `USingularisInteractionBehaviorStrategy`（交互行为策略，状态语义）
-
-元数据：`UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)`，继承 `UObject`。网络能力覆写与交互策略基类一致（`GetWorld` / `IsSupportedForNetworking` / `GetFunctionCallspace` / `CallRemoteFunction` / `GetLifetimeReplicatedProps`）。
-
-SPI（均为 `BlueprintNativeEvent`，默认空实现）：
-
-| 接口 | 触发时机 |
+| 语义 | 机制 |
 | --- | --- |
-| `Enabled(Context)` | 交互组件启用时 |
-| `Disabled(Context)` | 交互组件禁用时 |
-| `Hovered(Context)` | 交互组件被悬浮时 |
-| `Unhovered(Context)` | 交互组件解除悬浮时 |
+| 连续量（推进事件） | 事件分发器本地广播；唯一连续事件 |
+| 离散量（建立、达成、中止、领域事件、准入拒绝） | 事件分发器本地广播 |
 
-行为策略不参与交互触发管线，只响应状态变化。
+会话与响应永不自行组网：表现（例如钥匙旋转）由框架事件流承担。
 
-### 7. 视图层 (View Layer)
+### 5. 本地会话 (Local Session)
 
-#### 7.1 视图接口 (View Interfaces)
+- **镜像**：本地玩家交互者在主张时取会话原型并派生镜像实例，消费本地意图并逐帧就地推进，与会话端运行同一实现。
+- **本地流**：镜像发射的连续量与领域事件经交互者组件全量广播；结算由镜像达成或中止时广播。
+- **不与会话端交互**：不读会话状态、不消费会话端事件；无时间重校、无比例收敛、无吞并判别。
+- **其余交互者**：AI 与脚本交互者不派生镜像，直接转发会话端事件，结算先冲刷驱动。
 
-| 接口 | 方法 |
-| --- | --- |
-| `ISingularisInteractionViewInterface` | `OnRefresh(bEnabled, bHovered)`、`OnTrigger()`、`OnHover()`、`OnUnhover()`、`OnEnterRange()`、`OnExitRange()` |
-| `ISingularisInteractorViewInterface` | `OnRefresh(Target)`、`OnTargetChanged(OldTarget, NewTarget)`、`OnTriggered(Target, StrategyTag)` |
+### 6. 运行时归属 (Runtime Ownership)
 
-两个接口均为 `UINTERFACE(Blueprintable, BlueprintType)`，全部方法为 `BlueprintNativeEvent` + `BlueprintCallable`。`OnRefresh` 是**全量刷新 (Full Pull)** 入口，由控件组件在绑定完成后主动调用，用于消除绑定前错过事件导致的空白期；其余方法为**增量事件 (Delta Event)**。
-
-#### 7.2 控件组件 (Widget Components)
-
-| 组件 | 挂载点 | 复制 | 关键配置 | 依赖方向 |
-| --- | --- | --- | --- | --- |
-| `USingularisInteractionWidgetComponent` | 可交互 Actor | `SetIsReplicatedByDefault(false)` | `WidgetComponentReference`（UI 承载）、`PromptVolumeReference`（`UShapeComponent` 提示范围）、`InteractionComponentReference`、`InteractionWidgetClass`（`MustImplement` 视图接口） | 订阅 `USingularisInteractionComponent` 事件 |
-| `USingularisInteractorWidgetComponent` | `APlayerController` | `SetIsReplicatedByDefault(false)` | `bAutoCreateView`（默认 `true`）、`InteractorWidgetClass`（`MustImplement` 交互者视图接口，`EditCondition = bAutoCreateView`） | 订阅 `USingularisInteractorComponent` 事件 |
-
-两者的视图引用均以 `TScriptInterface` 缓存（`Transient`），调用一律通过 `Execute_` 静态派发，因此视图可以是任意实现对应接口的 `UObject`，不限于 `UUserWidget`。
-
-`USingularisInteractionWidgetComponent` 的 `BeginPlay` 流程：
-
-1. `ProxyWidgetComponent()`：本地控制器检查 → 解析控件组件引用 → `CreateWidget` → 运行时以 `ensureMsgf` 复核控件类是否实现视图接口（`MustImplement` 仅约束编辑器选择器）→ 以 `EWidgetSpace::Screen` 与 `ECollisionEnabled::NoCollision` 装配。
-2. `ProxyPromptVolume()`：将提示范围的 `ECC_INTERACTION` 响应设为 `Ignore`（避免提示范围遮挡视线查询），并绑定 `OnComponentBeginOverlap` / `OnComponentEndOverlap`；重叠回调仅在对方为 Pawn、其控制器为本地控制器且挂有交互者组件时，向视图推送 `OnEnterRange` / `OnExitRange`。
-3. `ObserveInteractionComponent()`：订阅交互组件的开始交互、悬浮、未悬浮事件，随后以 `Enabled()` 与 `Hovered()` 推送一次 `OnRefresh`。
-
-`USingularisInteractorWidgetComponent` 的 `BeginPlay` 中同样 `checkf` 要求宿主为 `APlayerController`；`bAutoCreateView = true` 时创建控件并添加到视口，随后订阅目标变更与交互触发事件并推送一次 `OnRefresh`。`bAutoCreateView = false` 时由 `SetInteractorView` 接受外部注入（自动创建模式下该函数直接返回），注入后自动推送一次全量状态。
-
-#### 7.3 默认控件 (Default Widgets)
-
-`USingularisInteractionWidget` 与 `USingularisInteractorWidget` 均继承 `UUserWidget` 并实现对应视图接口，C++ 中全部 SPI 为空实现，作为项目侧蓝图子类的挂载基类。交互控件组件的构造函数通过 `FClassFinder` 解析默认资产 `WBP_Default_SingularisInteractionWidget`。
-
-### 8. 设置与编辑器集成 (Settings & Editor Integration)
-
-`USingularisInteractionSettings`：`UCLASS(Config = SingularisInteraction, DefaultConfig)`，继承 `UDeveloperSettings`。编辑器分类名 `Singularis`，段落标题 `Singularis Interaction`，描述“引力奇点交互插件设置”；当前不包含配置字段。
-
-`FSingularisInteractionEditorModule`：在 `StartupModule` 中于 `AssetTools` 注册资产分类 `Singularis`，随后注册五个资产行为；`ShutdownModule` 中在模块仍加载的前提下逐一注销并清空缓存数组。
-
-| 资产行为 | 目标类 | 工厂产出 | 颜色 | 子菜单 |
-| --- | --- | --- | --- | --- |
-| `FAssetTypeActions_SingularisInteractionQueryer` | `USingularisInteractionQueryer` | `UBlueprint`（`BPTYPE_Normal`） | `FColor(0, 255, 0)` | `SingularisInteraction` |
-| `FAssetTypeActions_SingularisInteractionStrategy` | `USingularisInteractionStrategy` | `UBlueprint` | `FColor(63, 126, 255)` | `SingularisInteraction` |
-| `FAssetTypeActions_SingularisInteractionBehaviorStrategy` | `USingularisInteractionBehaviorStrategy` | `UBlueprint` | `FColor(63, 126, 255)` | `SingularisInteraction` |
-| `FAssetTypeActions_SingularisInteractionWidget` | `USingularisInteractionWidget` | `UWidgetBlueprint` | `FColor(44, 89, 180)` | `SingularisInteraction` |
-| `FAssetTypeActions_SingularisInteractorWidget` | `USingularisInteractorWidget` | `UWidgetBlueprint` | `FColor(44, 89, 180)` | `SingularisInteraction` |
-
-五个资产行为均派生自 `FAssetTypeActions_Blueprint`，对应工厂（`UFactory` 子类）设置 `bCreateNew = true`、`bEditAfterNew = true`，经 `FKismetEditorUtilities::CreateBlueprint` 创建蓝图资产（控件类产出 `UWidgetBlueprint`）。
-
-## 五、 运行机制与数据流 (Runtime Flow)
-
-### 1. 装配阶段 (BeginPlay)
-
-| 端 | 对象 | 动作 |
+| 数据或动作 | 归属 | 机制 |
 | --- | --- | --- |
-| 所有端 | `USingularisInteractionComponent` | 服务器登记策略与行为策略子对象到复制列表；向世界子系统登记 `TargetComponentReferences` 映射 |
-| 所有端 | `USingularisInteractorComponent` | 校验宿主为 `APlayerController`；本地控制器绑定输入并刷新映射上下文 |
-| 本地客户端 | `USingularisInteractionWidgetComponent` | 创建交互视图、装配提示范围、订阅交互组件并推送全量状态 |
-| 本地客户端 | `USingularisInteractorWidgetComponent` | 创建交互者视图（或等待外部注入）、订阅交互者组件并推送全量状态 |
+| 意图提交 | 调用端 | 经世界子系统单一入口就地提交 |
+| 会话结算 | 交互组件 | 唯一入口，经世界子系统单一入口转交 |
+| 会话时序（长按、连点、轴积分等） | 交互组件 | 会话以其时钟强制推进；AI 与玩家同规 |
+| 连续量与离散事件 | 事件流 | 经事件分发器广播并通知世界子系统（全局观察） |
+| 会话与响应实例 | 交互组件 | 经类默认值构建的内联子对象 |
+| 会话记录 | 交互组件 | 普通成员，仅逻辑端持有 |
+| 交互者目标状态 | 交互者驱动端 | 普通成员，仅控制端持有 |
+| 镜像会话状态 | 交互者驱动端 | 普通成员，仅本地玩家持有 |
+| 事件分发器 | 调用端 | 动态多播委托 |
+| 观察者组件 | 呈现端 | 纯观察者 |
 
-### 2. 目标锁定循环 (Query Loop)
+### 7. 接入清单 (Integration Checklist)
 
-```
-TickComponent → Query()
-  ├─ 非本地控制器 / 查询器无效 → 返回
-  ├─ GetPlayerViewPoint → ViewLoc / ViewRot
-  ├─ Query(Params) → Result
-  └─ SetQueryerResult(Result)
-        ├─ 结果与当前状态等价（同一 Actor + 同一组件）→ 返回
-        ├─ 旧目标 SetHovered(false)（如有效）
-        ├─ 新目标 SetHovered(true)（如有效）
-        ├─ RefreshInput()（挂载 / 卸载输入映射上下文）
-        └─ OnInteractionTargetChangedEvent.Broadcast(Old, New)
-```
-
-悬浮是**状态迁移 (State Transition)** 而非每帧写入：只有目标发生变更时才调用 `SetHovered`，因此启用 / 禁用、悬浮 / 未悬浮的事件与行为策略副作用均为边沿触发。
-
-### 3. 输入与网络通路 (Input & RPC Path)
-
-```
-EnhancedInput (Started)
-  → USingularisInteractorComponent::HandleInteractionAction(ActionValue, StrategyTag)
-      ├─ 本地控制器 + 有效目标校验
-      ├─ OnInteractionTriggeredEvent.Broadcast(Target, StrategyTag)   [本地]
-      └─ Server_RequestInteraction(Target, StrategyTag, ActionValue)  [Server / Reliable / WithValidation]
-            → USingularisInteractionComponent::TryInteraction(StrategyTag, PlayerController, ActionValue)  [服务器]
-```
-
-输入映射上下文只在锁定到有效目标期间存在，因此“有目标才有交互按键”的准入规则由输入系统承担，插件不额外实现门控。
-
-### 4. 权威执行与策略分发 (Authority & Strategy Dispatch)
-
-`TryInteraction` 是唯一的交互结算入口，标注 `BlueprintAuthorityOnly`，只能由服务器调用。执行顺序：
-
-1. 校验 `PlayerController` 有效。
-2. 广播 `OnInteractionEvent`。
-3. 组装 `FSingularisInteractionStrategyContext`（`Controller` / `Instigator` / `Avatar` / `Target` / `InteractionComponent` / `InputValue`）。
-4. 遍历 `InteractionStrategyPipelineMapping`，对满足 `Tag.MatchesTag(StrategyTag)` 的每个管线的 `Strategies` 数组按序调用 `Strategy->Execute(Context)`。
-
-当前实现不在管线层调用 `CanExecute`，也不读取 `bSuspend`；执行前提判定若需要，须由策略自身在 `Execute` 内部完成（见第八章）。
-
-### 5. 状态驱动与视图事件 (State & View Events)
-
-| 事件源 | 端 | 视图方法 | 视图类型 |
-| --- | --- | --- | --- |
-| `OnInteractionEvent`（`TryInteraction` 内广播） | 服务器 | `OnTrigger()` | 交互视图 |
-| `OnInteractionHoverEvent` / `OnInteractionUnhoverEvent` | 调用 `SetHovered` 的端 | `OnHover()` / `OnUnhover()` | 交互视图 |
-| 视图绑定时全量拉取 | 本地客户端 | `OnRefresh(bEnabled, bHovered)` | 交互视图 |
-| 提示范围重叠 | 本地客户端 | `OnEnterRange()` / `OnExitRange()` | 交互视图 |
-| `OnInteractionTargetChangedEvent` | 本地客户端 | `OnTargetChanged(Old, New)` | 交互者视图 |
-| `OnInteractionTriggeredEvent` | 本地客户端 | `OnTriggered(Target, StrategyTag)` | 交互者视图 |
-| 视图绑定时全量拉取 | 本地客户端 | `OnRefresh(Target)` | 交互者视图 |
-
-### 6. 网络模型 (Network Model)
-
-| 数据 / 动作 | 端 | 机制 |
+| 位置 | 必需性 | 内容 |
 | --- | --- | --- |
-| 交互请求 `Server_RequestInteraction` | 客户端 → 服务器 | `Server` `Reliable` `WithValidation` |
-| 策略执行 `TryInteraction` | 服务器 | `BlueprintAuthorityOnly` |
-| 策略与行为策略实例 | 服务器 → 客户端 | `Instanced` 子对象 + `AddReplicatedSubObject`（仅 `HasAuthority` 时登记） |
-| 交互者当前目标 `CurrentQueryerResult` | 本地客户端 | 普通成员，无 `UPROPERTY`，不复制；各端独立计算结果 |
-| 交互组件启用 / 悬浮状态 `bIsEnabled` / `bIsHovered` | 本地 | 私有普通成员，不复制 |
-| 交互组件与交互者组件事件委托 | 调用端本地 | `BlueprintAssignable` 动态多播委托，未标注 `Replicated` |
-| 交互控件组件与交互者控件组件 | 本地客户端 | `SetIsReplicatedByDefault(false)` |
-| 交互者组件 | 服务器 ↔ 客户端 | `SetIsReplicatedByDefault(true)`，用于承载 Server RPC |
-
-### 7. 装配清单 (Integration Checklist)
-
-| 位置 | 必需 | 组件 / 配置 |
-| --- | --- | --- |
-| 可交互 Actor | 必需 | `USingularisInteractionComponent`，并配置 `TargetComponentReferences` 指向参与命中的几何体 |
-| 可交互 Actor | 可选 | `USingularisInteractionWidgetComponent` + `UWidgetComponent` + `UShapeComponent`（提示范围） |
-| 玩家控制器 | 必需 | `USingularisInteractorComponent`（含查询器与输入映射配置） |
-| 玩家控制器 | 可选 | `USingularisInteractorWidgetComponent` |
-| 项目设置 | 必需 | 交互通道：源码使用 `ECC_GameTraceChannel1`，项目侧需将其命名为交互通道并让可交互几何体对该通道产生 `Block` 响应 |
-| 项目设置 | 可选 | `Project Settings → Singularis → Singularis Interaction`（当前无配置项） |
-
-本仓库 `Config/DefaultEngine.ini` 已将该通道登记为 `ECC_INTERACTION`，默认响应为 `ECR_Block`。
+| 可交互 Actor | 必需 | 交互组件，并配置参与命中的几何体引用 |
+| 可交互 Actor | 必需 | 管线映射内配置会话原型与响应集；内建会话族的参数即玩法时序（例如长按 1.5 秒） |
+| 玩家控制器或其 Pawn | 必需 | 交互者驱动端组件，含目标查询与输入适配配置 |
+| 可交互 Actor | 可选 | 目标侧观察者组件、控件组件与提示范围几何体 |
+| 玩家 HUD | 可选 | 玩家侧观察者组件 |
+| AI 控制器 | 可选 | 交互者驱动端组件与行为树任务（黑板键指向交互组件或 Actor） |
+| 项目设置 | 必需 | 交互通道：查询固定使用引擎的第一个自定义追踪通道，项目须为其命名，并让可交互几何体对其产生阻挡响应 |
+| 项目设置 | 可选 | 插件设置入口（当前无配置项） |
 
 ## 六、 扩展点清单 (Extension Points)
 
-| 扩展点 | 声明位置 | 调用方 | 语义 |
-| --- | --- | --- | --- |
-| `USingularisInteractionQueryer::Query` | `Objects/SingularisInteractionQueryer.h` | `USingularisInteractorComponent::Query` | 替换目标搜索算法（球形检测、形状扫描、多重命中、多目标评分等） |
-| `USingularisInteractionStrategy::CanExecute` | `Objects/SingularisInteractionStrategy.h` | 当前无调用方 | 执行前提判定；当前需由子类在 `Execute` 内自行调用或替代 |
-| `USingularisInteractionStrategy::Execute` | `Objects/SingularisInteractionStrategy.h` | `USingularisInteractionComponent::TryInteraction` | 交互副作用（服务器权威） |
-| `USingularisInteractionBehaviorStrategy::Enabled` / `Disabled` | `Objects/SingularisInteractionBehaviorStrategy.h` | `USingularisInteractionComponent::SetEnabled` | 启用状态副作用 |
-| `USingularisInteractionBehaviorStrategy::Hovered` / `Unhovered` | `Objects/SingularisInteractionBehaviorStrategy.h` | `USingularisInteractionComponent::SetHovered` | 悬浮状态副作用 |
-| `ISingularisInteractionViewInterface` | `Interfaces/SingularisInteractionViewInterface.h` | `USingularisInteractionWidgetComponent` | 目标侧表现（提示、图标、范围反馈、触发反馈） |
-| `ISingularisInteractorViewInterface` | `Interfaces/SingularisInteractorViewInterface.h` | `USingularisInteractorWidgetComponent` | 玩家侧表现（准星、当前目标信息、输入反馈） |
-| `USingularisInteractorComponent::SetInteractorView` | `Components/SingularisInteractorWidgetComponent.h` | 项目侧调用 | 关闭自动创建视图后注入自定义视图对象 |
-| `USingularisInteractionSubsystem::RegisterMapping` / `UnregisterMapping` | `Subsystems/SingularisInteractionSubsystem.h` | 项目侧调用 | 运行期动态增删可命中的几何体 |
-| 事件分发器（交互组件 5 个、交互者组件 2 个） | 组件头文件 | 蓝图 / C++ 订阅 | 不经过视图接口的旁路监听 |
-| 资产工厂与资产行为 | `SingularisInteractionEditor/Factories/*` | 内容浏览器 | 创建策略、行为策略、查询器、交互控件的蓝图资产 |
-
-## 七、 系列工程规范 (Series Conventions)
-
-本节提炼自本插件的现有实现。本插件作为 Singularis 系列的参考实现，以下约定可作为新插件的一致性基线。
-
-### 1. 三元标准模式 (Logic — Presentation — Control)
-
-新插件按系列标准模式划分职责：逻辑端承载领域状态与权威结算，表现端只读消费状态与事件，控制端采集输入并经网络边界提交请求。依赖保持单向（控制 → 逻辑、逻辑/控制 → 表现）：表现端不写回，逻辑端不引用输入与 UI。三元的载体、契约与部署方式见 2.1。
-
-### 2. 模块与目录结构
-
-- 每个插件固定两个模块：运行时模块承载全部逻辑，编辑器模块承载资产工厂、资产行为与编辑器扩展；两者均 `LoadingPhase = Default`。
-- 源文件按 `Public` / `Private` 镜像分目录，目录名使用领域名词复数：`Components`、`Configs`、`Factories`、`Interfaces`、`Objects`、`Subsystems`、`Types`、`Widgets`。
-- 类型名与文件名严格同名（`USingularisInteractionComponent` ↔ `SingularisInteractionComponent.h/.cpp`），便于按符号定位文件。
-- 模块级依赖写在 `PrivateDependencyModuleNames`（不对外暴露引擎依赖）；`PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs`。
-- 头文件包含分组：引擎头用尖括号（`#include <Components/ActorComponent.h>`）靠前，插件头用引号（`#include "Components/..."`）靠后，各自内部按字母序排列。
-
-### 3. 文件头与许可
-
-- 每个源文件顶部为统一横幅注释块：文件名、`SPDX-License-Identifier: MIT`、`SPDX-FileCopyrightText`、版权行、创建日期与作者、MIT 许可全文。
-- 插件根目录放置 `LICENSE.md` 与 `README.md`；`README.md` 当前仅含标题。
-
-### 4. 命名规范
-
-| 类别 | 约定 | 示例 |
+| 扩展面 | 接入方式 | 语义 |
 | --- | --- | --- |
-| 类 / 结构体 / 枚举 | 引擎前缀 + `Singularis` + 领域 + 角色 | `USingularisInteractionComponent`、`FSingularisInteractionStrategyContext`、`ESingularisInteractionMode` |
-| 委托类型 | `FOn` + 语义 + `Signature`（声明）/ `Event`（成员） | `FOnInteractionSignature`、`OnInteractionEvent` |
-| 模块 API 宏 | 插件名大写 + `_API` | `SINGULARISINTERACTION_API` |
-| 布尔成员 | `b` 前缀 | `bIsEnabled`、`bAutoCreateView` |
-| 元数据展示名 | 英文方法名 + 中文 `DisplayName` | `meta = (DisplayName = "TryInteraction")` |
+| 会话生命周期 | 会话子类或蓝图覆写五个生命周期扩展点 | 新增交互形态（蓄力、节奏、分段、可逆积分等），框架无需改动 |
+| 会话发射通道 | 会话经宿主契约发射事件与结算 | 领域事件经事件域子标签开放扩展 |
+| 会话宿主 | 以宿主契约替换发射通道的承接方 | 离线仿真、测试台或宿主替身；蓝图或 C++ 实现，会话端与镜像端共用同一契约 |
+| 响应事件处理（C++） | 类体内以声明宏登记标签与处理器 | 替代手写标签分支的声明式分派 |
+| 响应事件处理（蓝图） | 事件图内放置会话事件节点并配置订阅标签 | 无执行输入，从执行输出直接写逻辑；编译期回填声明，运行时按名直调 |
+| 输入源 | 继承输入源适配器基类或蓝图子类化，覆写三处扩展点 | 新增输入来源（界面按钮、回放、测试台、触控） |
+| 目标搜索 | 覆写查询扩展点 | 替换目标搜索算法（球形检测、形状扫描、多重命中、多目标评分等） |
+| 状态副作用 | 覆写行为四边沿 | 启用、禁用、悬浮、未悬浮的状态副作用 |
+| 目标侧表现 | 实现目标侧视图契约 | 进度环与阶段反馈等目标侧表现 |
+| 玩家侧表现 | 实现玩家侧视图契约 | 零延迟本地会话流的玩家侧表现 |
+| 意图入口 | 直接经世界子系统的唯一入口提交意图 | 绕过交互者驱动端的意图入口，供 AI、行为树、脚本与测试使用 |
+| 全局观察 | 订阅世界子系统的全局会话事件分发器 | 全局观察与遥测 |
+| 目标注入 | 调用交互者驱动端的目标注入 | 外部注入目标模式（AI 与脚本） |
+| 映射登记 | 调用世界子系统的登记与反登记 | 运行期动态增删可命中的几何体 |
+| 旁路监听 | 订阅交互组件与交互者驱动端的事件分发器 | 不经视图契约的旁路监听 |
+| 资产创建 | 使用编辑器部分提供的资产创建入口 | 创建六类资产的蓝图资产 |
 
-### 5. 类元数据与分类
+## 七、 设计准则 (Design Principles)
 
-- 运行时核心类统一使用 `ClassGroup = ("Singularis")`。
-- 可挂载组件使用 `meta = (BlueprintSpawnableComponent, DisplayName = "引力奇点<角色>组件")`，并在构造期显式声明 Tick 与复制策略。
-- 编辑器可见属性使用中文 `Category`，并允许 `|` 子层级：`Category = "引力奇点交互组件|API"`、`Category = "引力奇点交互策略|SPI"`。
+### 1. 单次请求到会话 (From Request to Session)
 
-### 6. 代码组织与注释
+本架构与前代“触发即执行”模型的差别不在事件数量，而在生命周期的存在。
 
-- 头文件与实现文件使用 `#pragma region` 分区，分区顺序：`Parameter` → `Event Dispatcher` → `State` → `Constructors` → `ActorComponent Interface` → `API` → `SPI` → `RPC` → `Callback` → `Internal Function`。
-- 类注释为中文段落，说明角色定位与协作对象；函数注释遵循 Doxygen 风格，含摘要与 `@param` / `@return`。
-- 实现函数内部使用编号步骤注释（`// 1) ...`、`// 2) ...`）描述执行阶段，网络与安全相关注释显式标注理由。
+| 维度 | 单次请求 (Request) | 会话 (Session) |
+| --- | --- | --- |
+| 时序 | 触发即结算，无中间态 | 建立、推进、定格、达成或中止；具备时长与进度 |
+| 输入 | 触发即包含全部语义 | 意图持续参与；连续值与离散主张可分路 |
+| 时序归属 | 触发端计时 | 会话端（会话以会话端时钟推进） |
+| 结算依据 | 副作用即结果 | 会话记录（可观察、可重建） |
+| 扩展方式 | 新增触发规则 | 新增会话推进规则（会话族）与响应集，框架无需改动 |
 
-### 7. 蓝图暴露规范
+准则：凡需要“过程中的语义”的交互，一律建模为会话；单次请求是会话的最小形态（会话建立即达成）。会话是逻辑端的运行期聚合：会话定义（会话原型与有序响应集）、推进规则、响应与状态行为、会话记录共同构成一次会话；达成与中止是会话的结束，而非请求的结束。
 
-| 场景 | 标注 |
+### 2. 三封闭三开放 (Minimal Core, Open Surface)
+
+- 封闭的极小核：会话转移字母表（建立、达成、中止）、一条准入判据（会话开始判据）、一条提交入口（世界级意图单一入口）。
+- 开放的扩展面：意图域标签、事件域标签、会话类型族。
+- 准则：凡框架无需区别对待的语义，一律下放为会话内部状态、开放标签或世界状态；只有框架必须区别对待的行为才纳入核心转移字母表。
+
+### 3. 识别位置决策 (Where Recognition Lives)
+
+| 判据 | 控制端识别（以输入触发器为准） | 逻辑端识别（以会话为准） |
+| --- | --- | --- |
+| AI 同规 | 不成立：需旁路复刻时序 | 成立：同一会话机 |
+| 时序归属 | 触发端，需要容差校验 | 会话端唯一真相 |
+| 配置位置 | 输入资产与管线分裂 | 管线单点配置 |
+| 输入生态复用 | 完整复用输入资产生态 | 降级为可选的手感塑形（防连点、双击表情等仍可用） |
+
+准则：玩法时序归会话，输入手感预筛归输入触发器，二者不重复计时。
+
+### 4. 本地会话纪律 (Local Session Discipline)
+
+- 本地玩家只在本地派生并推进镜像：会话原型不可用时驱动即刻冲刷，不设其他回退通路。
+- 本地会话流是本地玩家的唯一事件源：连续量与领域事件全量广播，结算在镜像达成或中止时广播。
+- 不消费会话端状态与事件：无时间重校、无比例收敛、无吞并判别。
+- 不提供回滚与输入缓冲重放：交互非竞技物理，镜像就地推进。
+
+### 5. 幂等与防御 (Idempotence & Defensive Discipline)
+
+- 全部外部输入入口以对象有效性守卫开路，守卫范围包括世界、宿主 Actor、控制器、组件引用与资源引用。
+- 状态写入先做幂等比较，再执行广播与副作用，重复调用不产生重复事件；结算与准入拒绝均幂等。
+- 回调驱动外部对象前先行快照（会话记录与上下文副本），防御回调反向变更容器导致的引用失效。
+- 编辑器选择器约束（接口实现、类允许列表）在运行期以复核替代信任，防止蓝图与代码绕过约束。
+- 跨对象引用使用弱引用（运行期缓存）或受管对象引用（持久成员），避免悬垂引用。
+
+### 6. 蓝图对等与执行纪律 (Blueprint Parity & Execution Discipline)
+
+| 场景 | 约定 |
 | --- | --- |
-| 可被蓝图覆写的执行语义 | `BlueprintNativeEvent` + `BlueprintCallable` |
-| 无副作用的查询 | `BlueprintPure` |
-| 服务器限定逻辑 | `BlueprintAuthorityOnly` |
-| 编辑器内联创建的对象型配置 | `UCLASS(... EditInlineNew, CollapseCategories)` + `UPROPERTY(Instanced, EditDefaultsOnly)` |
-| 组件引用配置 | `FComponentReference` + `meta = (UseComponentPicker, AllowedClasses = "...")` |
-| 类选择约束 | `meta = (MustImplement = "...")`、`meta = (EditCondition = "...")` |
+| 可被蓝图覆写的执行语义 | 以可覆写且可调用的执行语义暴露 |
+| 无副作用的查询 | 以纯查询语义暴露 |
+| 限定逻辑 | 仅在逻辑端执行的语义标注限定 |
+| 内联创建的对象型配置 | 内联实例化并与分类折叠，配置形态统一 |
+| 组件声明 | 纯观察者组件只读消费事件 |
+| 连续语义 | 走唯一连续事件（推进），分界由事件域约定 |
+| 离散语义 | 走离散事件；两者经同一事件分发器广播 |
+| 意图提交 | 经世界子系统单一入口就地提交，校验与实现分离 |
+| 会话裁决 | 只在交互组件运行；本地镜像与会话端运行同一实现，但两者不相互对齐 |
 
-### 8. 网络编程规范
+## 八、 已知约束与实现边界 (Known Constraints)
 
-- 需要独立 RPC 通道的组件显式 `SetIsReplicatedByDefault(true)`；纯观察者组件显式 `SetIsReplicatedByDefault(false)`。
-- 子对象复制统一走 `bReplicateUsingRegisteredSubObjectList = true` + `AddReplicatedSubObject`，登记动作限定在 `HasAuthority()` 端。
-- 客户端到服务器的请求使用 `Server` + `Reliable` + `WithValidation`，校验函数与实现函数分离，校验失败由引擎丢弃请求。
-- 可被蓝图继承并需要 RPC 的子对象，必须覆写 `IsSupportedForNetworking`、`GetFunctionCallspace`、`CallRemoteFunction`，并沿 `GetOuter()` 链定位宿主 Actor 的网络驱动。
-
-### 9. 防御式编程与幂等
-
-- 所有外部输入函数以 `IsValid` 守卫开路，守卫对象包括世界、宿主 Actor、控制器、组件引用与资源指针。
-- 状态写入函数先做幂等比较，再执行广播与副作用，保证重复调用不产生重复事件。
-- 编辑器选择器约束（`MustImplement`、`AllowedClasses`）在运行期以 `ensureMsgf` 复核，防止蓝图与 C++ 绕过约束。
-- 跨对象引用使用 `TWeakObjectPtr`（运行时缓存）或 `TObjectPtr`（`UPROPERTY` 成员），避免悬垂引用。
-
-### 10. 内容资源规范
-
-| 前缀 | 类别 | 示例 |
-| --- | --- | --- |
-| `WBP_Default_<Plugin>` | 默认控件 | `WBP_Default_SingularisInteractionWidget` |
-| `IMC_Default_<Role>` | 默认输入映射上下文 | `IMC_Default_SingularisInteractor` |
-| `IA_<Action>` | 输入动作 | `IA_Interaction` |
-| `T_<Name>` | 贴图 | `T_Circle`、`T_Spacebar` |
-
-内容目录按用途分组：`Inputs/`、`Inputs/Actions/`、`Textures/`、`UserInterfaces/`。
-
-## 八、 已知约束与当前实现边界 (Known Constraints)
-
-### 1. 未接线的声明
+### 1. 未接线的声明 (Unwired Declarations)
 
 | 项 | 现状 |
 | --- | --- |
-| `USingularisInteractionStrategy::CanExecute` | 已声明并暴露给蓝图，默认返回 `true`；`TryInteraction` 直接调用 `Execute`，运行时不调用 `CanExecute` |
-| `FSingularisInteractionStrategyPipeline::bSuspend` | 已声明并可在编辑器配置（默认 `true`）；当前无任何读取方 |
-| `ESingularisInteractionMode` / `USingularisInteractionQueryer::SingularisInteractionMode` | 提供 `Ray` 与 `Collision` 两项；基类 `Query` 实现固定执行 `LineTraceSingleByChannel`，不读取该属性；`Collision` 模式未实现 |
-| `USingularisInteractionSettings` | 已挂载 `Config = SingularisInteraction` 与项目设置分类；当前无配置字段 |
+| 查询模式选择项 | 已提供两种取值；基类查询实现固定执行射线查询，不读取该选择项；碰撞模式未实现 |
+| 插件设置 | 已挂载项目设置分类；当前无配置字段 |
 
-### 2. 状态与门控
+### 2. 状态与门控 (State & Gating)
 
-- 交互组件的启用状态（`bIsEnabled`）不参与目标锁定与触发准入：`Query` 与 `TryInteraction` 均不检查该状态。其作用范围为事件广播（`OnInteractionEnableEvent` / `OnInteractionDisableEvent`）与行为策略驱动。
-- 结果幂等比较只比较 `InteractionActor` 与 `InteractionComponent`，不比较 `ImpactPoint`；同一目标内的命中点变化不更新 `CurrentQueryerResult.ImpactPoint`，也不触发目标变更事件。
-- 行为策略在调用 `SetEnabled` / `SetHovered` 的端就地执行，插件不复制状态、不转发副作用。
+- 启用状态参与会话准入：禁用时拒绝主张，并取消全部活跃会话；拒绝与取消经事件流广播，本地镜像不消费该反馈，驱动由镜像结算冲刷；但启用状态不参与目标锁定，查询不检查该状态。
+- 目标状态的幂等比较只比较目标与目标组件，不比较命中点。
+- 行为在调用端就地执行；插件不持有其状态、不转发其副作用。
+- 单驱动卫语句限定同一交互者同一时刻仅驱动一个目标会话；跨目标并发由项目侧的会话或响应自行裁决，框架不做全局仲裁。
 
-### 3. 网络行为
+### 3. 事件流行为 (Event Stream Behavior)
 
-- `OnInteractionEvent` 在服务器（`TryInteraction`）广播；交互组件的事件分发器未标注 `Replicated`，交互控件组件在本地控制器侧订阅。因此该广播与远程客户端的订阅不在同一端，远程客户端不接收来自服务器的触发通知。
-- 策略与行为策略对象经子对象复制下发，但 SPI 的执行结果不参与复制；需要跨端表现时，由策略子类自行声明 RPC（基类已提供路由支持）。
+- 事件分发器：会话端在驱动路径本地广播，交互者组件与观察者组件订阅消费，全局面经世界子系统转发。
+- 本地玩家不消费会话端事件：本地会话流由镜像自持；其余交互者直接转发会话端事件。
+- 会话与响应实例经类默认值构建，属于资产与代码层面的一致性问题。
+- 会话记录仅在交互组件维护；历史结果由世界状态与领域事件承载，不重放历史事件。
+- 本地玩家不与会话端交互：不读会话状态、不对齐；镜像缺失（会话原型不可用）时驱动即刻冲刷。
+- 不参与网络同步：无属性复制、无 RPC、无多播；会话端与镜像端均在本机运行，跨机同步由项目侧自行承担。
 
-### 4. 项目级配置依赖
+### 4. 项目级配置依赖 (Project-Level Configuration Dependencies)
 
-- 交互通道硬编码为 `ECC_GameTraceChannel1`（源码内以 `#define ECC_INTERACTION ECC_GameTraceChannel1` 在多个编译单元重复定义）。项目必须将 `GameTraceChannel1` 作为交互通道使用，并让可交互几何体对其产生 `Block` 响应；本仓库 `Config/DefaultEngine.ini` 已将其命名为 `ECC_INTERACTION`。
-- 默认资产路径硬编码于构造函数：`/SingularisInteraction/Inputs/IMC_Default_SingularisInteractor`、`/SingularisInteraction/Inputs/Actions/IA_Interaction`、`/SingularisInteraction/UserInterfaces/WBP_Default_SingularisInteractionWidget`。解析失败时对应字段保持为空，不报错。
+- 目标查询固定使用引擎的第一个自定义追踪通道。项目必须将该通道用于交互，并让可交互几何体对其产生阻挡响应；未按此配置时视线查询不会命中目标。
+- 默认资产在构造期按固定路径解析：默认输入映射资产、默认输入动作与两个默认视图资产。解析失败时对应字段保持为空且不报错。
+- 行为树任务依赖引擎 AI 模块；不使用 AI 通路时该依赖可在构建配置中移除。
 
-### 5. 资产与代码偏差
+### 5. 资产与实现偏差 (Asset & Implementation Deviations)
 
-- `USingularisInteractorWidgetComponent` 构造函数引用 `/SingularisInteraction/UserInterfaces/WBP_Default_SingularisInteractorWidget`，该资产当前不存在于插件 `Content/UserInterfaces`（该目录仅含 `WBP_Default_SingularisInteractionWidget`）。解析失败时 `InteractorWidgetClass` 保持为空，`bAutoCreateView = true` 时不会创建视图。编辑器模块已提供 `USingularisInteractorWidget` 的资产工厂：启用自动创建视图需将同名控件蓝图放入上述路径，或在子类中指定 `InteractorWidgetClass`，或关闭自动创建并经 `SetInteractorView` 注入。
-- `USingularisInteractionSubsystem` 的文件头注释块仍使用旧名 `SingularisInteractionMappingSubsystem.h`；其 `UCLASS` 上的 `BlueprintSpawnableComponent` 元数据对 `UWorldSubsystem` 无实际作用。
-- `USingularisInteractionStrategy` 与 `USingularisInteractionBehaviorStrategy` 的 `GetLifetimeReplicatedProps` 仅调用 `Super`，子类自定义复制属性需自行覆写并添加 `DOREPLIFETIME`。
+- 默认玩家侧视图资产尚未提供：玩家侧观察者在自动创建模式下解析失败，视图不创建。补齐同路径资产，或关闭自动创建并外部注入，均可恢复玩家侧表现。
+- 世界子系统类上标注的「可作为组件生成」元数据不产生实际作用：子系统不可作为组件挂载于 Actor。
+- 默认输入映射资产沿用交互者角色命名；资产重命名或移动会使构造期路径解析失败，如需统一命名应同步调整解析路径。
 
-## 九、 关键字字典 (Keywords Glossary)
+## 九、 前代版本处置 (v1 Disposition)
 
-- **Logic — Presentation — Control (逻辑 — 表现 — 控制)：** Singularis 系列标准模式；逻辑端承载领域状态与权威结算，表现端（UI）只读消费状态与事件，控制端（输入）采集输入并跨网络边界提交请求，依赖单向且表现端不回写。本插件中三者分别由交互组件与策略对象、两个控件组件与视图接口、交互者组件承担（见 2.1）。
-- **Interaction (交互)：** 玩家输入经由查询锁定、RPC 过桥、服务器策略执行直至表现反馈的完整通路；本插件只提供该通路的骨架。
-- **Interactor (交互者)：** 玩家侧驱动组件 `USingularisInteractorComponent`，负责查询、悬浮迁移、输入绑定与请求转发；必须挂载于 `APlayerController`。
-- **Queryer (查询器)：** `USingularisInteractionQueryer`，目标搜索算法单元，默认实现为单次 `LineTraceSingleByChannel`。
-- **Strategy (交互策略)：** `USingularisInteractionStrategy`，触发语义的执行单元，经标签层级匹配后按数组顺序执行；业务副作用在此落地。
-- **Behavior Strategy (行为策略)：** `USingularisInteractionBehaviorStrategy`，状态语义的执行单元，响应启用、禁用、悬浮、未悬浮四类边沿事件，不参与触发管线。
-- **Pipeline (管线)：** `FSingularisInteractionStrategyPipeline`，一组有序策略的包装体，是映射表的值类型。
-- **Tag Hierarchy Matching (标签层级匹配)：** `Tag.MatchesTag(StrategyTag)` 判定法；映射键须为触发标签的等值或后代，触发父标签会命中其子树下的全部管线。
-- **Mapping Subsystem (映射子系统)：** `USingularisInteractionSubsystem`，世界级 `TMap`，把可命中的碰撞组件映射到承载交互语义的交互组件；键值均为弱引用。
-- **View Interface (视图接口)：** `ISingularisInteractionViewInterface` 与 `ISingularisInteractorViewInterface`，表现层唯一依赖契约；实现者可为任意 `UObject`，不限于控件。
-- **Full Pull（全量刷新）：** 绑定完成后由控件组件主动调用 `OnRefresh` 推送一次完整状态，消除绑定前错过事件导致的空白期。
-- **Prompt Volume (提示范围)：** `UShapeComponent` 重叠体，仅用于进入与离开范围的反馈；其交互通道响应被强制设为 `Ignore`，不参与视线查询。
-- **Server Authority (服务器权威)：** `TryInteraction` 标注 `BlueprintAuthorityOnly`，交互副作用只在服务器结算；客户端仅通过 `Server` `Reliable` RPC 发起请求。
-- **Subobject Replication (子对象复制)：** 以 `bReplicateUsingRegisteredSubObjectList` + `AddReplicatedSubObject` 将 `Instanced` 策略对象纳入复制与 RPC 路由。
-- **Subobject RPC Routing (子对象 RPC 路由)：** 策略基类覆写 `GetFunctionCallspace` 与 `CallRemoteFunction`，沿 Outer 链定位宿主 Actor 的网络驱动，将子对象自身作为路由对象传入，使策略子类可声明自有 RPC。
-- **Instanced / EditInlineNew (内联实例化)：** 编辑器内直接创建子对象的属性声明方式，配合 `CollapseCategories` 使用，是策略与查询器的配置形态。
-- **Idempotence (幂等)：** 状态写入前比较旧值、未变化即返回的约定，用于消除重复事件与重复副作用。
-- **Glue (胶水层)：** 项目侧通过组件引用、策略子类与视图实现把本插件接入具体玩法的代码；插件自身不含胶水逻辑以外的业务。
+前代版本的会话与模式解析层已整体移除，且不提供向后兼容，处置如下。
+
+| 移除项 | 处置 |
+| --- | --- |
+| 交互模式类型枚举与会话阶段枚举 | 由意图域与事件域标签开放替代 |
+| 模式描述结构与管线模式字段 | 由管线中的会话原型替代 |
+| 控制端模式解析器 | 由逻辑端会话族替代；输入触发器回归手感塑形本位 |
+| 阶段驱动的会话尝试入口 | 由意图接收入口与世界子系统单一入口替代 |
+| 响应的多入口生命周期回调与输入值传递 | 由单一分派入口与开放事件流替代；手工事件入口一并移除 |
+| 交互者系列命名 | 由交互者驱动端与玩家侧视图系列重建 |
+| 子对象复制登记与响应网络覆写 | 移除：框架事件流承担传播，响应不自行组网 |
+| 双端识别与时钟容差 | 移除：时序唯一真相收敛至会话端 |
+
+## 十、 术语表 (Glossary)
+
+- **Standard Reference Implementation (标准参考实现)：** 本插件在系列中的定位：系列标准模式（逻辑 — 表现 — 控制）、意图协议、会话框架与响应者模型的基线实现，其他 Singularis 插件以与本插件同构为实现基准。
+- **Logic — Presentation — Control (逻辑 — 表现 — 控制)：** 系列标准模式；逻辑端承载领域状态与结算，表现端只读消费状态与事件，控制端采集来源事件并提交意图；依赖单向，表现端不回写（见 二.1）。
+- **Intent-Driven (意图驱动)：** 架构命题：协议只讲意图不讲手势；来源差异在控制端被翻译消除，逻辑端只处理中性意图。
+- **Intent (意图)：** 控制端到逻辑端的中性协议单元，由意图标签与中性量值构成；核心词汇为主张、撤回、连续值，领域意图经标签开放扩展。
+- **Interaction Session (交互会话)：** 一次交互从建立到达成或中止的完整生命周期；由会话定义（会话原型与有序响应集）、响应与状态行为与会话记录共同构成；转移字母表封闭为三个动词。
+- **Request (请求)：** 控制端提交的单次协议单元（意图序列的最小形态）；会话由请求发起，但生命周期长于请求，达成与中止界定会话而非请求。
+- **Session Definition (会话定义)：** 按策略标签映射装配的会话装配单元：推进规则原型与有序响应集的组合；会话建立时以它派生会话专属的运行期实例。
+- **Session Object (会话对象)：** 会话推进规则的执行单元（计时、计数、积分、跟踪、蓄能）；会话端与镜像端运行同一实现；内建六族（瞬时、长按、连点、轴积分、拖动、脉冲），项目侧可子类化扩展且框架无需改动。
+- **Session Host (会话宿主)：** 会话发射通道的承接契约；会话端为交互组件，镜像端为交互者组件。
+- **Session End (会话端)：** 承载会话机的交互组件；与镜像端（交互者组件）相对。
+- **Response (交互响应)：** 会话事件的副作用执行单元：以单一入口消费统一事件流，事件经声明式分派落地；不自行组网，表现由框架事件流承担。
+- **Behavior (交互行为)：** 状态语义的执行单元，响应交互组件的启用、禁用、悬浮与未悬浮四类边沿；不参与会话事件流与管线装配。
+- **Responder Model (响应者模型)：** 四类独立响应者（状态行为、会话响应、全局响应、表现响应）分别承接会话的状态面、事件面、世界面与表现面（见 二.6）。
+- **Session Event (会话事件)：** 逻辑端到响应与表现端的统一事件单元；推进为唯一连续事件，其余为离散事件。
+- **Declarative Dispatch (声明式分派)：** 处理器只声明订阅标签，命中判定与调用由框架承担；C++ 以声明宏登记，蓝图以事件图内的会话事件节点声明；事件处理不存在手工入口。
+- **Session Event Node (会话事件节点)：** 蓝图侧的声明式事件处理器节点；无执行输入，带订阅标签配置引脚（取值限定于事件域子树）与执行输出；编译期生成独立入口函数并由编译钩子回填声明，运行时按名直调；受引擎扩展点约束，只能派生自导出成员完整的事件基类。
+- **Interactor (交互者)：** 发起交互的主体（玩家控制器、Pawn、AI、脚本）；会话以交互者为键，玩家与 AI 共用同一通路与规则。
+- **Driver (驱动器)：** 输入源适配结构扩展点，把来源事件翻译为意图；玩家路径由输入资产驱动，AI 与脚本无需驱动器。
+- **Queryer (查询器)：** 目标搜索算法单元；基类实现为单次射线查询。
+- **Pipeline (管线)：** 会话原型与有序响应集的组合，是映射表的值类型与会话推进的唯一装配单元。
+- **Strategy Tag (策略标签)：** 会话的语义标识与管线映射键；映射键与触发标签按层级匹配；本域标签不参与意图与事件协议，仅供装配与选路。
+- **Local Session (本地会话)：** 本地玩家在本地派生并推进会话实例、产出零延迟会话流的机制；不与会话端状态交互。
+- **Local Mirror (本地镜像)：** 交互者端以会话原型派生的本地会话实例，与会话端运行同一实现；不与会话端状态对齐。
+- **Local Session Flow (本地会话流)：** 交互者组件广播的本地事件流：本地玩家为镜像发射产物，其余交互者为会话端事件转发。
+- **Event Stream (事件流)：** 会话事件经事件分发器本地广播并通知世界子系统；单一机制同时服务表现渲染与旁观观察。
+- **Single Session Truth (单一会话真相)：** 会话机与会话对象只在交互组件裁决；本地镜像不消费其事件，AI 与玩家同规。
+- **Tag Hierarchy Matching (标签层级匹配)：** 映射键与触发标签的判定法：映射键为触发标签自身或祖先时命中。
+- **Mapping Registry (映射登记)：** 世界级的几何体到交互组件映射表，承载命中反查，并支撑运行期的动态增删。
+- **View Contract (视图契约)：** 表现端唯一依赖的两个接口契约；实现者可为任意对象，不限于控件。
+- **Full Pull (全量刷新)：** 绑定完成后由观察者主动投递一次完整状态，消除绑定前错过事件导致的空白期。
+- **Prompt Volume (提示范围)：** 仅用于进入与离开范围反馈的重叠体；其交互通道响应被强制设为忽略，不参与视线查询。
+- **Settle (定格)：** 绝对跟踪类交互在松手时广播的中间态落定事件；进度可停在中途。
+- **Minimal Transition Kernel (极小转移核)：** 会话机仅封闭建立、达成、中止三个动词，其余语义经开放事件流透传。
+- **Single-Drive Guard (单驱动卫语句)：** 交互者同一时刻仅驱动一个目标会话的前置约束，是并发仲裁的边界。
+- **Idempotence (幂等)：** 状态写入前比较旧值、未变化即返回的约定；会话建立、结算与准入拒绝均幂等吞并重复输入。
+- **Instanced Configuration (内联实例化配置)：** 在编辑期内直接创建子对象的配置形态，用于会话、响应、行为与查询器。
+- **Integration Checklist (接入清单)：** 项目侧完成接入所需的最小装配项集合（见 五.7）。
+- **Glue (胶水层)：** 项目侧通过组件引用、会话与响应子类、视图实现把插件接入具体玩法的部分；插件不含胶水逻辑以外的业务。

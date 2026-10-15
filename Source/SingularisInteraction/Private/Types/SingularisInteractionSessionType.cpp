@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionStrategyFactory.cpp                               *
+ * SingularisInteractionSessionType.cpp                                   *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/22 | Author: TrifingZW                                *
+ * Created: 2026/10/13 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,40 +28,4 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#include "Factories/SingularisInteractionStrategyFactory.h"
-
-#include <Kismet2/KismetEditorUtilities.h>
-
-USingularisInteractionStrategyFactory::USingularisInteractionStrategyFactory()
-{
-	bCreateNew = true;
-	bEditAfterNew = true;
-	SupportedClass = USingularisInteractionStrategy::StaticClass();
-}
-
-UObject* USingularisInteractionStrategyFactory::FactoryCreateNew(
-	UClass* InClass,
-	UObject* InParent,
-	const FName InName,
-	EObjectFlags Flags,
-	UObject* Context,
-	FFeedbackContext* Warn
-)
-{
-	// 1) 利用 KismetEditorUtilities 自动生成蓝图资产
-	// 2) 强制将其基类指派为最新的交互策略基础类 USingularisInteractionStrategy
-	return FKismetEditorUtilities::CreateBlueprint(
-		USingularisInteractionStrategy::StaticClass(),
-		InParent,
-		InName,
-		BPTYPE_Normal,
-		UBlueprint::StaticClass(),
-		UBlueprintGeneratedClass::StaticClass(),
-		NAME_None
-	);
-}
-
-bool USingularisInteractionStrategyFactory::ShouldShowInNewMenu() const
-{
-	return true;
-}
+#include "Types/SingularisInteractionSessionType.h"

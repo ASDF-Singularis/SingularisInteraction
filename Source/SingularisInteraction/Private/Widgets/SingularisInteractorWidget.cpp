@@ -1,4 +1,4 @@
-﻿/* ====================================================================== *
+/* ====================================================================== *
  * SingularisInteractorWidget.cpp                                         *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
@@ -39,7 +39,7 @@ void USingularisInteractorWidget::OnTargetChanged_Implementation(
 	USingularisInteractionComponent* NewTarget
 ) {}
 
-void USingularisInteractorWidget::OnTriggered_Implementation(
+void USingularisInteractorWidget::OnSessionEvent_Implementation(
 	USingularisInteractionComponent* Target,
-	FGameplayTag StrategyTag
+	const FSingularisInteractionSessionEvent& Event
 ) {}

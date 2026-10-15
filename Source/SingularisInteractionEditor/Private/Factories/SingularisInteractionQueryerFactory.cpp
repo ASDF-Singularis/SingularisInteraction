@@ -62,7 +62,4 @@ UObject* USingularisInteractionQueryerFactory::FactoryCreateNew(
 	);
 }
 
-bool USingularisInteractionQueryerFactory::ShouldShowInNewMenu() const
-{
-	return true;
-}
+bool USingularisInteractionQueryerFactory::ShouldShowInNewMenu() const { return true; }

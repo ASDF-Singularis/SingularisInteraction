@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionBehaviorStrategyType.h                            *
+ * SingularisInteractionSessionPulse.cpp                                  *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/31 | Author: TrifingZW                                *
+ * Created: 2026/10/13 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,30 +28,57 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#pragma once
+#include "Sessions/SingularisInteractionSessionPulse.h"
 
-#include <CoreMinimal.h>
+#include <Math/UnrealMathUtility.h>
 
-#include "SingularisInteractionBehaviorStrategyType.generated.h"
+#include "Types/SingularisInteractionGameplayTags.h"
 
-class AActor;
-class USingularisInteractionComponent;
-
-/**
- * 引力奇点交互行为策略上下文。
- *
- * 行为策略执行时由交互组件组装，描述副作用作用的交互目标。
- */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionBehaviorStrategyContext
+void USingularisInteractionSessionPulse::Begin_Implementation(const FSingularisInteractionSessionContext& Context)
 {
-	GENERATED_BODY()
+	// 1) 会话建立即首次主张
+	PulseCounter = 1;
+	LastPulseElapsed = 0.0f;
 
-	/** 交互目标 Actor */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AActor* InteractionActor = nullptr;
+	// 2) 广播首声进度
+	EmitSessionEvent(SingularisInteraction_Event_Progress, static_cast<float>(PulseCounter) / PulseCount);
+}
 
-	/** 交互目标组件 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	USingularisInteractionComponent* InteractionComponent = nullptr;
-};
+void USingularisInteractionSessionPulse::ReceiveIntent_Implementation(
+	const FSingularisInteractionSessionContext& Context,
+	const FSingularisInteractionIntent& Intent
+)
+{
+	// 1) 仅响应主张意图
+	if (Intent.IntentTag != SingularisInteraction_Intent_Press)
+		return;
+
+	// 2) 窗口校验：自最近一次主张起算超时即中止
+	if (Context.Elapsed - LastPulseElapsed > PulseWindow)
+	{
+		CancelSession();
+		return;
+	}
+
+	// 3) 计数推进：达标即完成，否则广播进度
+	++PulseCounter;
+	LastPulseElapsed = Context.Elapsed;
+
+	if (PulseCounter >= PulseCount)
+	{
+		CompleteSession();
+		return;
+	}
+
+	EmitSessionEvent(SingularisInteraction_Event_Progress, static_cast<float>(PulseCounter) / PulseCount);
+}
+
+void USingularisInteractionSessionPulse::Tick_Implementation(
+	const FSingularisInteractionSessionContext& Context,
+	const float DeltaTime
+)
+{
+	// 1) 窗口超时即中止
+	if (Context.Elapsed - LastPulseElapsed > PulseWindow)
+		CancelSession();
+}

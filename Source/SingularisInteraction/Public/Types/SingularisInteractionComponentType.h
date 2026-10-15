@@ -34,8 +34,9 @@
 
 #include "SingularisInteractionComponentType.generated.h"
 
-class USingularisInteractionStrategy;
-class USingularisInteractionBehaviorStrategy;
+class USingularisInteractionSession;
+class USingularisInteractionResponse;
+class USingularisInteractionBehavior;
 
 /**
  * 引力奇点交互模式。
@@ -53,60 +54,60 @@ enum class ESingularisInteractionMode : uint8
 };
 
 /**
- * 引力奇点交互策略条目
+ * 引力奇点交互响应条目
  */
 USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionStrategyEntry
+struct SINGULARISINTERACTION_API FSingularisInteractionResponseEntry
 {
 	GENERATED_BODY()
 
-	/** 策略名称，用于编辑器展示 */
+	/** 响应名称，用于编辑器展示 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText StrategyName{};
+	FText ResponseName{};
 
-	/** 策略说明 */
+	/** 响应说明 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText StrategyDescription{};
+	FText ResponseDescription{};
 
-	/** 策略实例 */
+	/** 响应实例 */
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite)
-	USingularisInteractionStrategy* Strategy = nullptr;
+	USingularisInteractionResponse* Response = nullptr;
 };
 
 /**
- * 引力奇点交互策略管线：用于包装一组有序的策略
+ * 引力奇点交互策略管线：会话原型与有序响应集的组合，是会话推进的唯一装配单元。
  */
 USTRUCT(BlueprintType)
 struct SINGULARISINTERACTION_API FSingularisInteractionStrategyPipeline
 {
 	GENERATED_BODY()
 
-	/** 按数组顺序依次执行的策略集 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (TitleProperty = "StrategyName"))
-	TArray<FSingularisInteractionStrategyEntry> Strategies;
+	/** 交互会话原型：会话推进规则的执行单元，会话建立时派生专属实例 */
+	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite)
+	USingularisInteractionSession* Session = nullptr;
 
-	/** 是否在策略完成后挂起后续策略（当前无读取方，预留语义）。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bSuspend = true;
+	/** 按数组顺序依次驱动的响应集 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (TitleProperty = "ResponseName"))
+	TArray<FSingularisInteractionResponseEntry> Responses{};
 };
 
 /**
- * 引力奇点交互行为策略条目
+ * 引力奇点交互行为条目
  */
 USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionBehaviorStrategyEntry
+struct SINGULARISINTERACTION_API FSingularisInteractionBehaviorEntry
 {
 	GENERATED_BODY()
 
-	/** 行为策略名称，用于编辑器展示 */
+	/** 行为名称，用于编辑器展示 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText BehaviorStrategyName{};
+	FText BehaviorName{};
 
-	/** 行为策略说明 */
+	/** 行为说明 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText BehaviorStrategyDescription{};
+	FText BehaviorDescription{};
 
-	/** 行为策略实例 */
+	/** 行为实例 */
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite)
-	USingularisInteractionBehaviorStrategy* BehaviorStrategy = nullptr;
+	USingularisInteractionBehavior* Behavior = nullptr;
 };

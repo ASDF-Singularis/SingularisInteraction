@@ -5,7 +5,7 @@
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/09/27 | Author: TrifingZW                                *
+ * Created: 2026/10/13 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -33,8 +33,8 @@
 #include <CoreMinimal.h>
 #include <AssetTypeActions/AssetTypeActions_Blueprint.h>
 #include <Factories/Factory.h>
+#include <Widgets/SingularisInteractorWidget.h>
 
-#include "Widgets/SingularisInteractorWidget.h"
 #include "SingularisInteractorWidgetFactory.generated.h"
 
 /**
@@ -84,7 +84,7 @@ public:
 
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override
 	{
-		// 1) 动态实例化工厂对象以接管该资产蓝图的创建流程
+		// 1) 动态实例化工厂对象以接管该资产蓝图的创建会话
 		USingularisInteractorWidgetFactory* Factory = NewObject<USingularisInteractorWidgetFactory>();
 		return Factory;
 	}

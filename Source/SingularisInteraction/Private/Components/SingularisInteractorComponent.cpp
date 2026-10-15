@@ -30,77 +30,44 @@
 
 #include "Components/SingularisInteractorComponent.h"
 
-#include <EnhancedInputComponent.h>
-#include <EnhancedInputSubsystems.h>
-#include <InputMappingContext.h>
-#include <Engine/LocalPlayer.h>
-#include <GameFramework/Actor.h>
+#include <Engine/World.h>
+#include <GameFramework/Controller.h>
 #include <GameFramework/Pawn.h>
 #include <GameFramework/PlayerController.h>
-#include <UObject/ConstructorHelpers.h>
+#include <Math/UnrealMathUtility.h>
+#include <UObject/UObjectGlobals.h>
 
 #include "SingularisInteraction.h"
 #include "Components/SingularisInteractionComponent.h"
-#include "Objects/SingularisInteractionQueryer.h"
+#include "Drivers/SingularisInteractionEnhancedInputDriver.h"
+#include "Subsystems/SingularisInteractionSubsystem.h"
 #include "Types/SingularisInteractionGameplayTags.h"
 
 USingularisInteractorComponent::USingularisInteractorComponent()
 {
-	SetIsReplicatedByDefault(true);
-
 	PrimaryComponentTick.bStartWithTickEnabled = true;
 	PrimaryComponentTick.bCanEverTick = true;
 
 	bAutoActivate = true;
 
 	InteractionQueryer = CreateDefaultSubobject<USingularisInteractionQueryer>("InteractionQueryer");
-
-	static const ConstructorHelpers::FObjectFinder<UInputMappingContext> DefaultInputMappingContextFinder(
-		TEXT("/SingularisInteraction/Inputs/IMC_Default_SingularisInteractor.IMC_Default_SingularisInteractor")
-	);
-	static const ConstructorHelpers::FObjectFinder<UInputAction> DefaultInteractionActionFinder(
-		TEXT("/SingularisInteraction/Inputs/Actions/IA_Interaction.IA_Interaction")
-	);
-
-	if (DefaultInputMappingContextFinder.Succeeded())
-		InputMappingContext = DefaultInputMappingContextFinder.Object;
-	else
-		UE_LOG(
-		LogSingularisInteraction,
-		Warning,
-		TEXT("默认输入映射上下文加载失败：%s"),
-		TEXT("/SingularisInteraction/Inputs/IMC_Default_SingularisInteractor")
-	);
-
-	if (DefaultInteractionActionFinder.Succeeded())
-		InteractorInputs.Add({DefaultInteractionActionFinder.Object, SingularisInteraction_Strategy_Default});
-	else
-		UE_LOG(
-		LogSingularisInteraction,
-		Warning,
-		TEXT("默认交互输入动作加载失败：%s"),
-		TEXT("/SingularisInteraction/Inputs/Actions/IA_Interaction")
-	);
+	InteractionDriver = CreateDefaultSubobject<USingularisInteractionEnhancedInputDriver>("InteractionDriver");
 }
 
 void USingularisInteractorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	checkf(
-		GetOwner()->IsA<APlayerController>(),
-		TEXT("[%s] Owner 非 PlayerController"),
-		*GetNameSafe(GetOwner())
-	);
+	// 1) 预解析宿主玩家控制器
+	GetInteractorPlayerController();
 
-	// 1) 缓存拥有者玩家控制器
-	OwnerPlayerController = Cast<APlayerController>(GetOwner());
+	// 2) 装配驱动器（增强输入驱动器在非本地玩家交互者上自动空转）
+	if (IsValid(InteractionDriver))
+		InteractionDriver->InitializeDriver(this);
 
-	// 2) 绑定交互者输入集
-	BindInput();
-
-	// 3) 刷新输入映射上下文
-	RefreshInput();
+	// 3) 刷新输入装配至当前目标状态
+	if (IsValid(InteractionDriver))
+		InteractionDriver->OnTargetChanged(nullptr, CurrentQueryerResult.InteractionComponent);
 
 	UE_LOG(
 		LogSingularisInteraction,
@@ -118,134 +85,226 @@ void USingularisInteractorComponent::TickComponent(
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// 1) 视线查询锁定目标（仅本地玩家交互者）
 	Query();
+
+	// 2) 推进本地镜像会话
+	MirrorTick(DeltaTime);
 }
 
-bool USingularisInteractorComponent::Server_RequestInteraction_Validate(
-	USingularisInteractionComponent* TargetInteractionComponent,
-	FGameplayTag StrategyTag,
-	FInputActionValue ActionValue
+void USingularisInteractorComponent::HostEmitSessionEvent_Implementation(
+	USingularisInteractionSession* Session,
+	const FGameplayTag& EventTag,
+	const float Alpha
 )
 {
-	// 1) 防作弊安全校验：确保目标组件在服务器端也依然有效
-	if (!IsValid(TargetInteractionComponent))
+	// 1) 仅接受当前镜像实例（冲刷后的迟到发射静默吞并）
+	if (!bMirrorActive || Session != MirrorSession)
+		return;
+
+	// 2) 连续量与领域事件：本地会话流全量广播
+	BroadcastInteractorSession(DriveTarget.Get(), DriveStrategyTag, EventTag, FMath::Clamp(Alpha, 0.0f, 1.0f));
+}
+
+void USingularisInteractorComponent::HostCompleteSession_Implementation(USingularisInteractionSession* Session)
+{
+	// 1) 镜像达成：结算
+	if (bMirrorActive && Session == MirrorSession)
+		EndMirror(true);
+}
+
+void USingularisInteractorComponent::HostCancelSession_Implementation(USingularisInteractionSession* Session)
+{
+	// 1) 镜像中止：结算
+	if (bMirrorActive && Session == MirrorSession)
+		EndMirror(false);
+}
+
+void USingularisInteractorComponent::SetTarget(USingularisInteractionComponent* NewTarget)
+{
+	// 1) 组装最小查询结果（外部注入目标模式）
+	FSingularisInteractionQueryerResult QueryerResult;
+	if (IsValid(NewTarget))
 	{
-		UE_LOG(
-			LogSingularisInteraction,
-			Warning,
-			TEXT("[%s] Server_RequestInteraction_Validate：目标交互组件无效，拒绝请求"),
-			*GetNameSafe(GetOwner())
-		);
-		return false;
+		QueryerResult.InteractionActor = NewTarget->GetOwner();
+		QueryerResult.InteractionComponent = NewTarget;
 	}
 
-	// 此处后续可补充网络距离校验防作弊（如：距离过远则拒绝交互）
+	// 2) 统一经查询结果通路应用（幂等比较 + 全量副作用）
+	SetQueryerResult(QueryerResult);
+}
+
+bool USingularisInteractorComponent::SubmitInteractionIntent(
+	USingularisInteractionComponent* Target,
+	const FGameplayTag StrategyTag,
+	const FGameplayTag IntentTag,
+	const FSingularisInteractionValue& Value
+)
+{
+	// 1) 零信任校验
+	if (!IsValid(Target) || !StrategyTag.IsValid() || !IntentTag.IsValid())
+		return false;
+
+	AActor* InteractorActor = GetOwner();
+	if (!IsValid(InteractorActor))
+		return false;
+
+	// 2) 单驱动卫语句：进行中的驱动仅接受同目标同标签意图
+	if (bDriveActive && (DriveTarget.Get() != Target || DriveStrategyTag != StrategyTag))
+		return false;
+
+	// 3) 组装意图
+	FSingularisInteractionIntent Intent;
+	Intent.IntentTag = IntentTag;
+	Intent.Value = Value;
+
+	// 4) 本地玩家交互者：本地会话流
+	if (IsLocalPlayerInteractor())
+	{
+		if (IntentTag == SingularisInteraction_Intent_Press)
+		{
+			bDriveActive = true;
+			DriveTarget = Target;
+			DriveStrategyTag = StrategyTag;
+
+			USingularisInteractionSession* SessionArchetype = Target->GetInteractionSession(StrategyTag);
+
+			// 4.1) 无会话原型：本地无会话流可产出，即刻冲刷驱动
+			if (!IsValid(SessionArchetype))
+			{
+				UE_LOG(
+					LogSingularisInteraction,
+					Warning,
+					TEXT("[%s] SubmitInteractionIntent：策略标签 %s 无会话原型，镜像未派生"),
+					*GetNameSafe(InteractorActor),
+					*StrategyTag.ToString()
+				);
+				FlushDrive();
+			}
+			else
+			{
+				// 4.2) 广播 Begin 并派生镜像会话
+				BroadcastInteractorSession(Target, StrategyTag, SingularisInteraction_Event_Begin, 0.0f);
+				BeginMirror(SessionArchetype);
+			}
+		}
+		else
+			FeedMirrorIntent(Intent);
+	}
+	else if (IntentTag == SingularisInteraction_Intent_Press)
+	{
+		// 5) 其余交互者（AI / 脚本）：登记驱动状态供单驱动卫语句与结算清理
+		bDriveActive = true;
+		DriveTarget = Target;
+		DriveStrategyTag = StrategyTag;
+	}
+
+	// 6) 经世界子系统单一入口提交
+	if (UWorld* World = GetWorld())
+	{
+		if (USingularisInteractionSubsystem* Subsystem = World->GetSubsystem<USingularisInteractionSubsystem>())
+			Subsystem->SubmitInteractionIntent(InteractorActor, Target, StrategyTag, Intent);
+	}
+
 	return true;
 }
 
-void USingularisInteractorComponent::Server_RequestInteraction_Implementation(
-	USingularisInteractionComponent* TargetInteractionComponent,
-	const FGameplayTag StrategyTag,
-	const FInputActionValue ActionValue
+bool USingularisInteractorComponent::BeginInteraction(
+	USingularisInteractionComponent* Target,
+	const FGameplayTag StrategyTag
 )
 {
-	// 1) 二次校验并确保存在拥有者
-	if (!IsValid(TargetInteractionComponent))
-		return;
-	if (!OwnerPlayerController.IsValid())
-		return;
-
-	// 2) 在服务器执行核心业务逻辑（此时调用的 BlueprintAuthorityOnly 业务逻辑即合法）
-	TargetInteractionComponent->TryInteraction(
+	return SubmitInteractionIntent(
+		Target,
 		StrategyTag,
-		OwnerPlayerController.Get(),
-		ActionValue
+		SingularisInteraction_Intent_Press,
+		FSingularisInteractionValue()
 	);
 }
 
-void USingularisInteractorComponent::BindInput()
+bool USingularisInteractorComponent::EndInteraction(
+	USingularisInteractionComponent* Target,
+	const FGameplayTag StrategyTag
+)
 {
-	// 1) 安全性检查：仅在拥有本地控制权时绑定输入
-	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController())
-		return;
-
-	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(
-		OwnerPlayerController->InputComponent
+	return SubmitInteractionIntent(
+		Target,
+		StrategyTag,
+		SingularisInteraction_Intent_Release,
+		FSingularisInteractionValue()
 	);
-	if (!IsValid(EnhancedInputComponent))
-	{
-		UE_LOG(
-			LogSingularisInteraction,
-			Warning,
-			TEXT("[%s] BindInput：EnhancedInputComponent 无效，交互输入不可用"),
-			*GetNameSafe(GetOwner())
-		);
-		return;
-	}
-
-	// 2) 遍历并绑定交互者输入集
-	for (const auto& [InputAction, Tag] : InteractorInputs)
-	{
-		if (!IsValid(InputAction) || !Tag.IsValid())
-			continue;
-
-		EnhancedInputComponent->BindAction(
-			InputAction,
-			ETriggerEvent::Started,
-			this,
-			&USingularisInteractorComponent::HandleInteractionAction,
-			Tag
-		);
-	}
 }
 
-void USingularisInteractorComponent::RefreshInput() const
+APlayerController* USingularisInteractorComponent::GetInteractorPlayerController()
 {
-	// 1) 基础检查
-	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
-	if (!IsValid(InputMappingContext)) return;
+	// 1) 缓存有效时直接返回
+	if (OwnerPlayerController.IsValid())
+		return OwnerPlayerController.Get();
 
-	UEnhancedInputLocalPlayerSubsystem* Subsystem =
-		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(OwnerPlayerController->GetLocalPlayer());
-	if (!IsValid(Subsystem))
+	// 2) 惰性解析：宿主控制器，或宿主 Pawn 的控制器
+	AActor* OwnerActor = GetOwner();
+	if (!IsValid(OwnerActor))
+		return nullptr;
+
+	APlayerController* PlayerController = Cast<APlayerController>(OwnerActor);
+	if (!IsValid(PlayerController))
 	{
-		UE_LOG(
-			LogSingularisInteraction,
-			Warning,
-			TEXT("[%s] RefreshInput：EnhancedInput 本地玩家子系统无效"),
-			*GetNameSafe(GetOwner())
-		);
-		return;
+		if (const APawn* OwnerPawn = Cast<APawn>(OwnerActor))
+			PlayerController = Cast<APlayerController>(OwnerPawn->GetController());
 	}
 
-	// 2) 根据当前交互状态动态添加或移除映射上下文
-	if (CurrentQueryerResult.IsInteractionValid())
-		Subsystem->AddMappingContext(InputMappingContext, InputPriority);
-	else
-		Subsystem->RemoveMappingContext(InputMappingContext);
+	OwnerPlayerController = PlayerController;
+	return PlayerController;
+}
+
+bool USingularisInteractorComponent::IsLocalPlayerInteractor()
+{
+	const APlayerController* PlayerController = GetInteractorPlayerController();
+	return IsValid(PlayerController) && PlayerController->IsLocalController();
+}
+
+void USingularisInteractorComponent::HandleTargetSessionEvent(FSingularisInteractionSessionEvent Event)
+{
+	// 1) 仅关注本交互者会话：目标随绑定隐式确定（绑定与解绑均随目标迁移），零信任丢弃失效目标
+	USingularisInteractionComponent* const Target = GetCurrentTarget();
+	if (!IsValid(Target) || Event.Context.Interactor != GetOwner())
+		return;
+
+	// 2) 本地玩家：本地会话流自持，不消费会话端事件
+	if (IsLocalPlayerInteractor())
+		return;
+
+	// 3) 其余交互者（AI / 脚本）：结算先冲刷驱动，其余事件直接转发
+	if (Event.EventTag == SingularisInteraction_Event_Complete ||
+		Event.EventTag == SingularisInteraction_Event_Cancel)
+		FlushDrive();
+
+	OnInteractorSessionEvent.Broadcast(Target, Event);
 }
 
 void USingularisInteractorComponent::Query()
 {
-	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
-	if (!IsValid(InteractionQueryer)) return;
+	// 1) 仅本地玩家交互者且配置查询器时执行
+	if (!IsLocalPlayerInteractor() || !IsValid(InteractionQueryer))
+		return;
 
-	// 1) 获取本地玩家视线数据
+	APlayerController* PlayerController = OwnerPlayerController.Get();
+	if (!IsValid(PlayerController))
+		return;
+
+	// 2) 获取本地玩家视线数据并构建查询参数
 	FVector ViewLoc;
 	FRotator ViewRot;
-	OwnerPlayerController->GetPlayerViewPoint(ViewLoc, ViewRot);
+	PlayerController->GetPlayerViewPoint(ViewLoc, ViewRot);
 
-	// 2) 构建查询交互参数
 	FSingularisInteractionQueryerParams QueryerParams;
 	QueryerParams.ViewLoc = ViewLoc;
 	QueryerParams.ViewRot = ViewRot;
-	QueryerParams.IgnoredActor = OwnerPlayerController->GetPawn();
+	QueryerParams.IgnoredActor = PlayerController->GetPawn();
 
-	// 3) 执行查询交互并获取结果
+	// 3) 执行查询并写入结果
 	FSingularisInteractionQueryerResult QueryerResult;
-	const bool bIsInteractionHit = InteractionQueryer->Query(QueryerResult, QueryerParams);
-
-	// 4) 使用访问器模式更新当前交互状态
+	InteractionQueryer->Query(QueryerResult, QueryerParams);
 	SetQueryerResult(QueryerResult);
 }
 
@@ -253,26 +312,21 @@ void USingularisInteractorComponent::SetQueryerResult(
 	const FSingularisInteractionQueryerResult& QueryerResult
 )
 {
-	// 1) 本地玩家检查
-	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
+	// 1) 幂等性检查，若状态未变更则直接返回
+	if (CurrentQueryerResult == QueryerResult)
+		return;
 
-	// 2) 幂等性检查，若状态未变更则直接返回
-	if (CurrentQueryerResult == QueryerResult) return;
-
-	// 3) 捕获旧状态后写入新状态
+	// 2) 捕获旧状态后写入新状态并应用副作用
 	const FSingularisInteractionQueryerResult OldQueryerResult = CurrentQueryerResult;
 	CurrentQueryerResult = QueryerResult;
-
-	// 4) 响应式编程：应用查询结果副作用
 	ApplyQueryerResult(OldQueryerResult);
 
-	// 5) 广播交互目标变更
+	// 3) 广播交互目标变更
 	OnInteractionTargetChangedEvent.Broadcast(
 		OldQueryerResult.InteractionComponent,
 		CurrentQueryerResult.InteractionComponent
 	);
 
-	// 6) 目标迁移属低频状态事件（非每帧），记录新旧目标便于追踪锁定链路
 	UE_LOG(
 		LogSingularisInteraction,
 		Display,
@@ -285,59 +339,170 @@ void USingularisInteractorComponent::SetQueryerResult(
 
 void USingularisInteractorComponent::ApplyQueryerResult(
 	const FSingularisInteractionQueryerResult& OldQueryerResult
-) const
-{
-	// 1) 清理旧状态：取消旧目标的悬停状态
-	if (OldQueryerResult.IsInteractionValid())
-		OldQueryerResult.InteractionComponent->SetHovered(false);
-
-	// 2) 设置新状态：激活新目标的悬停状态
-	if (CurrentQueryerResult.IsInteractionValid())
-		CurrentQueryerResult.InteractionComponent->SetHovered(true);
-
-	// 3) 根据最新状态刷新输入映射上下文
-	RefreshInput();
-}
-
-// ReSharper disable CppMemberFunctionMayBeConst
-
-void USingularisInteractorComponent::HandleInteractionAction(
-	const FInputActionValue& ActionValue,
-	const FGameplayTag StrategyTag
 )
 {
-	// 1) 基础环境与目标校验
-	if (!OwnerPlayerController.IsValid() || !OwnerPlayerController->IsLocalController()) return;
-	if (!CurrentQueryerResult.IsInteractionValid())
+	USingularisInteractionComponent* OldTarget =
+		OldQueryerResult.IsInteractionValid() ? OldQueryerResult.InteractionComponent : nullptr;
+	USingularisInteractionComponent* NewTarget =
+		CurrentQueryerResult.IsInteractionValid() ? CurrentQueryerResult.InteractionComponent : nullptr;
+
+	// 1) 目标迁移：向旧目标提交撤回、冲刷驱动、解绑会话事件并取消悬浮
+	if (IsValid(OldTarget))
 	{
-		UE_LOG(
-			LogSingularisInteraction,
-			Display,
-			TEXT("[%s] HandleInteractionAction：无有效交互目标，忽略"),
-			*GetNameSafe(GetOwner())
+		if (bDriveActive && DriveTarget.Get() == OldTarget)
+		{
+			SubmitInteractionIntent(
+				OldTarget,
+				DriveStrategyTag,
+				SingularisInteraction_Intent_Release,
+				FSingularisInteractionValue()
+			);
+		}
+
+		FlushDrive();
+
+		OldTarget->OnInteractionSessionEvent.RemoveDynamic(
+			this,
+			&USingularisInteractorComponent::HandleTargetSessionEvent
 		);
-		return;
+
+		if (IsLocalPlayerInteractor())
+			OldTarget->SetHovered(false);
 	}
 
-	// 2) 获取目标交互组件
-	USingularisInteractionComponent* TargetInteractionComponent = CurrentQueryerResult.InteractionComponent;
-	if (!IsValid(TargetInteractionComponent))
+	// 2) 新目标：绑定会话事件并激活悬浮
+	if (IsValid(NewTarget))
+	{
+		NewTarget->OnInteractionSessionEvent.AddDynamic(
+			this,
+			&USingularisInteractorComponent::HandleTargetSessionEvent
+		);
+
+		if (IsLocalPlayerInteractor())
+			NewTarget->SetHovered(true);
+	}
+
+	// 3) 通知驱动器刷新输入装配
+	if (IsValid(InteractionDriver))
+		InteractionDriver->OnTargetChanged(OldTarget, NewTarget);
+}
+
+APawn* USingularisInteractorComponent::ResolveInstigator(AActor* Interactor)
+{
+	// 1) Pawn 即触发者，控制器取其 Pawn
+	if (const APawn* AsPawn = Cast<APawn>(Interactor))
+		return const_cast<APawn*>(AsPawn);
+
+	if (const AController* AsController = Cast<AController>(Interactor))
+		return AsController->GetPawn();
+
+	return nullptr;
+}
+
+bool USingularisInteractorComponent::BeginMirror(USingularisInteractionSession* Archetype)
+{
+	// 1) 原型与驱动目标校验，派生镜像实例
+	if (!IsValid(Archetype) || !DriveTarget.IsValid())
+		return false;
+
+	USingularisInteractionSession* MirrorInstance = DuplicateObject<USingularisInteractionSession>(Archetype, this);
+	if (!IsValid(MirrorInstance))
+		return false;
+
+	MirrorInstance->BindSessionHost(this);
+
+	// 2) 装配镜像状态（会话启动置于末尾）
+	MirrorSession = MirrorInstance;
+	bMirrorActive = true;
+	MirrorElapsed = 0.0f;
+
+	MirrorContext = FSingularisInteractionSessionContext{};
+	MirrorContext.Interactor = GetOwner();
+	MirrorContext.Instigator = ResolveInstigator(GetOwner());
+	MirrorContext.Avatar = DriveTarget->GetOwner();
+	MirrorContext.Target = DriveTarget->GetOwner();
+	MirrorContext.InteractionComponent = DriveTarget.Get();
+	MirrorContext.StrategyTag = DriveStrategyTag;
+	MirrorContext.Elapsed = 0.0f;
+
+	// 3) 启动镜像会话（瞬时会话在此完成并结算）
+	MirrorInstance->Begin(MirrorContext);
+	return true;
+}
+
+void USingularisInteractorComponent::FeedMirrorIntent(const FSingularisInteractionIntent& Intent)
+{
+	// 1) 非镜像运行态静默吞并
+	if (!bMirrorActive || !IsValid(MirrorSession))
 		return;
 
-	// 3) 广播交互触发
-	OnInteractionTriggeredEvent.Broadcast(TargetInteractionComponent, StrategyTag);
+	// 2) 更新会话时钟并委托会话摄入（会话可能结算并冲刷镜像，此后不得再触碰镜像状态）
+	MirrorContext.Elapsed = MirrorElapsed;
+	MirrorSession->ReceiveIntent(MirrorContext, Intent);
+}
 
-	// 4) 向服务器发起交互 RPC（过桥）
-	Server_RequestInteraction(TargetInteractionComponent, StrategyTag, ActionValue);
+void USingularisInteractorComponent::MirrorTick(const float DeltaTime)
+{
+	// 1) 仅本地玩家交互者且镜像运行中时推进
+	if (!IsLocalPlayerInteractor() || !bDriveActive || !bMirrorActive)
+		return;
 
-	UE_LOG(
-		LogSingularisInteraction,
-		Display,
-		TEXT("[%s] HandleInteractionAction：请求交互目标 %s，标签 %s"),
-		*GetNameSafe(GetOwner()),
-		*GetNameSafe(TargetInteractionComponent),
-		*StrategyTag.ToString()
+	// 2) 推进镜像会话（与逻辑端会话同一实现），累计时长并转发其发射
+	MirrorElapsed += DeltaTime;
+	MirrorContext.Elapsed = MirrorElapsed;
+	if (IsValid(MirrorSession))
+		MirrorSession->Tick(MirrorContext, DeltaTime);
+}
+
+void USingularisInteractorComponent::BroadcastInteractorSession(
+	USingularisInteractionComponent* Target,
+	const FGameplayTag& StrategyTag,
+	const FGameplayTag& EventTag,
+	const float Alpha
+)
+{
+	// 1) 组装会话事件（含身份上下文）
+	FSingularisInteractionSessionEvent Event;
+	Event.EventTag = EventTag;
+	Event.Alpha = Alpha;
+	Event.Context.Interactor = GetOwner();
+	Event.Context.Instigator = ResolveInstigator(GetOwner());
+	Event.Context.Avatar = IsValid(Target) ? Target->GetOwner() : nullptr;
+	Event.Context.Target = Event.Context.Avatar;
+	Event.Context.InteractionComponent = Target;
+	Event.Context.StrategyTag = StrategyTag;
+
+	// 2) 广播本地流
+	OnInteractorSessionEvent.Broadcast(Target, Event);
+}
+
+void USingularisInteractorComponent::EndMirror(const bool bCompleted)
+{
+	// 1) 非镜像运行态静默吞并
+	if (!bMirrorActive)
+		return;
+
+	// 2) 捕获身份后冲刷镜像状态
+	USingularisInteractionComponent* Target = DriveTarget.Get();
+	const FGameplayTag StrategyTag = DriveStrategyTag;
+	FlushDrive();
+
+	// 3) 广播结算
+	BroadcastInteractorSession(
+		Target,
+		StrategyTag,
+		bCompleted ? SingularisInteraction_Event_Complete : SingularisInteraction_Event_Cancel,
+		bCompleted ? 1.0f : 0.0f
 	);
 }
 
-// ReSharper restore CppMemberFunctionMayBeConst
+void USingularisInteractorComponent::FlushDrive()
+{
+	MirrorSession = nullptr;
+	bMirrorActive = false;
+	MirrorElapsed = 0.0f;
+
+	bDriveActive = false;
+	DriveTarget = nullptr;
+	DriveStrategyTag = FGameplayTag{};
+}

@@ -1,4 +1,4 @@
-﻿/* ====================================================================== *
+/* ====================================================================== *
  * SingularisInteractionViewInterface.h                                   *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
@@ -33,6 +33,7 @@
 #include <CoreMinimal.h>
 #include <UObject/Interface.h>
 
+#include "Types/SingularisInteractionSessionType.h"
 #include "SingularisInteractionViewInterface.generated.h"
 
 /**
@@ -47,7 +48,7 @@ class USingularisInteractionViewInterface : public UInterface
 	GENERATED_BODY()
 };
 
-/** 交互视图实现接口：接收交互状态的全量刷新与触发、悬浮、提示范围增量事件。 */
+/** 交互视图实现接口：接收交互状态的全量刷新与悬浮、提示范围、会话事件增量。 */
 class SINGULARISINTERACTION_API ISingularisInteractionViewInterface
 {
 	GENERATED_BODY()
@@ -65,15 +66,6 @@ public:
 		meta = (DisplayName = "交互刷新")
 	)
 	void OnRefresh(bool bEnabled, bool bHovered);
-
-	/** 交互触发。 */
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "引力奇点交互视图接口",
-		meta = (DisplayName = "触发")
-	)
-	void OnTrigger();
 
 	/** 交互悬浮。 */
 	UFUNCTION(
@@ -110,4 +102,17 @@ public:
 		meta = (DisplayName = "离开范围")
 	)
 	void OnExitRange();
+
+	/**
+	 * 交互会话事件。
+	 *
+	 * @param Event 会话事件，含事件标签、量值与会话上下文。
+	 */
+	UFUNCTION(
+		BlueprintNativeEvent,
+		BlueprintCallable,
+		Category = "引力奇点交互视图接口",
+		meta = (DisplayName = "会话事件")
+	)
+	void OnSessionEvent(const FSingularisInteractionSessionEvent& Event);
 };

@@ -84,7 +84,7 @@ public:
 
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override
 	{
-		// 1) 动态实例化工厂对象以接管该资产蓝图的创建流程
+		// 1) 动态实例化工厂对象以接管该资产蓝图的创建会话
 		USingularisInteractionQueryerFactory* Factory = NewObject<USingularisInteractionQueryerFactory>();
 		return Factory;
 	}

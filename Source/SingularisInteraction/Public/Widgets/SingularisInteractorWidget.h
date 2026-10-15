@@ -1,4 +1,4 @@
-﻿/* ====================================================================== *
+/* ====================================================================== *
  * SingularisInteractorWidget.h                                           *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
@@ -60,9 +60,9 @@ public:
 		USingularisInteractionComponent* NewTarget
 	) override;
 
-	/** 交互者发起一次交互请求。 */
-	virtual void OnTriggered_Implementation(
+	/** 交互者本地会话流事件。 */
+	virtual void OnSessionEvent_Implementation(
 		USingularisInteractionComponent* Target,
-		FGameplayTag StrategyTag
+		const FSingularisInteractionSessionEvent& Event
 	) override;
 };

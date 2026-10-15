@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionStrategyFactory.h                                 *
+ * SingularisInteractionBehaviorFactory.h                                 *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/22 | Author: TrifingZW                                *
+ * Created: 2026/01/30 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,28 +28,27 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-
 #pragma once
 
 #include <CoreMinimal.h>
 #include <AssetTypeActions/AssetTypeActions_Blueprint.h>
 #include <Factories/Factory.h>
-#include <Objects/SingularisInteractionStrategy.h>
+#include <Objects/SingularisInteractionBehavior.h>
 
-#include "SingularisInteractionStrategyFactory.generated.h"
+#include "SingularisInteractionBehaviorFactory.generated.h"
 
 /**
- * 引力奇点交互策略工厂。
+ * 引力奇点交互行为工厂。
  *
- * 在内容浏览器中创建 USingularisInteractionStrategy 的蓝图资产。
+ * 在内容浏览器中创建 USingularisInteractionBehavior 的蓝图资产。
  */
 UCLASS()
-class SINGULARISINTERACTIONEDITOR_API USingularisInteractionStrategyFactory : public UFactory
+class SINGULARISINTERACTIONEDITOR_API USingularisInteractionBehaviorFactory : public UFactory
 {
 	GENERATED_BODY()
 
 public:
-	USingularisInteractionStrategyFactory();
+	USingularisInteractionBehaviorFactory();
 	virtual UObject* FactoryCreateNew(
 		UClass* InClass,
 		UObject* InParent,
@@ -62,31 +61,32 @@ public:
 };
 
 /**
- * 引力奇点交互策略资产行为。
+ * 引力奇点交互行为资产行为。
  */
-class FAssetTypeActions_SingularisInteractionStrategy : public FAssetTypeActions_Blueprint
+class FAssetTypeActions_SingularisInteractionBehavior : public FAssetTypeActions_Blueprint
 {
 public:
-	explicit FAssetTypeActions_SingularisInteractionStrategy(const EAssetTypeCategories::Type InAssetCategory)
+	explicit FAssetTypeActions_SingularisInteractionBehavior(const EAssetTypeCategories::Type InAssetCategory)
 		: AssetTypeCategory(InAssetCategory) {}
 
 	virtual FText GetName() const override
 	{
 		return NSLOCTEXT(
 			"SingularisInteractionEditor",
-			"AssetTypeActions_SingularisInteractionStrategy",
-			"Singularis Interaction Strategy"
+			"AssetTypeActions_SingularisInteractionBehavior",
+			"Singularis Interaction Behavior"
 		);
 	}
 
 	virtual FColor GetTypeColor() const override { return FColor(63, 126, 255); }
 
-	virtual UClass* GetSupportedClass() const override { return USingularisInteractionStrategy::StaticClass(); }
+	virtual UClass* GetSupportedClass() const override { return USingularisInteractionBehavior::StaticClass(); }
 
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override
 	{
-		// 1) 动态实例化工厂对象以接管该资产蓝图的创建流程
-		USingularisInteractionStrategyFactory* Factory = NewObject<USingularisInteractionStrategyFactory>();
+		// 1) 动态实例化工厂对象以接管该资产蓝图的创建会话
+		USingularisInteractionBehaviorFactory* Factory = NewObject<
+			USingularisInteractionBehaviorFactory>();
 		return Factory;
 	}
 

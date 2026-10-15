@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionStrategy.h                                        *
+ * SingularisInteractionEditorStyle.h                                     *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/10/15 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -31,66 +31,24 @@
 #pragma once
 
 #include <CoreMinimal.h>
-#include <UObject/Object.h>
-
-#include "SingularisInteractionStrategy.generated.h"
-
-struct FSingularisInteractionStrategyContext;
 
 /**
- * 引力奇点交互策略。
- *
- * 交互管线的执行单元，由交互组件按策略标签层级匹配后依次执行。
- * 子类覆写 Execute 实现交互副作用；CanExecute 供业务侧自行调用判定执行前提，
- * 当前触发管线直接执行 Execute，不会在管线层调用 CanExecute。
+ * SingularisInteractionEditor 模块的 Slate 样式集。
+ * 注册 K2 节点等编辑器图标（复用插件 Resources 下的图标资源），
+ * 由模块 StartupModule / ShutdownModule 成对调用 Register / Unregister 维护生命周期。
  */
-UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)
-class SINGULARISINTERACTION_API USingularisInteractionStrategy : public UObject
+class FSingularisInteractionEditorStyle
 {
-	GENERATED_BODY()
-
 public:
-#pragma region UObject Interface
+	/** 样式集名称，构造 FSlateIcon 时传入 */
+	static FName GetStyleSetName();
 
-	virtual UWorld* GetWorld() const override;
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	/** 会话事件节点图标槽位名 */
+	static FName GetSessionEventIconName();
 
-	virtual bool IsSupportedForNetworking() const override;
-	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
-	virtual bool CallRemoteFunction(UFunction* Function, void* Parms, FOutParmRec* OutParms, FFrame* Stack) override;
+	/** 注册样式集（模块启动时调用） */
+	static void Register();
 
-#pragma endregion
-
-#pragma region SPI
-
-	/**
-	 * 判定本策略在当前上下文中是否允许执行。
-	 *
-	 * 供业务侧自行调用；当前触发管线不调用本函数。
-	 *
-	 * @param Context 交互策略上下文。
-	 * @return 允许执行时返回 true。
-	 */
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "引力奇点交互策略|SPI",
-		meta = (DisplayName = "CanExecute")
-	)
-	bool CanExecute(const FSingularisInteractionStrategyContext& Context) const;
-
-	/**
-	 * 执行本策略。
-	 *
-	 * @param Context 交互策略上下文。
-	 */
-	UFUNCTION(
-		BlueprintNativeEvent,
-		BlueprintCallable,
-		Category = "引力奇点交互策略|SPI",
-		meta = (DisplayName = "Execute")
-	)
-	void Execute(const FSingularisInteractionStrategyContext& Context);
-
-#pragma endregion
+	/** 注销样式集（模块关闭时调用） */
+	static void Unregister();
 };

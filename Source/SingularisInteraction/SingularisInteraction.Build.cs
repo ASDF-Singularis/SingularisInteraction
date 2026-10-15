@@ -12,6 +12,7 @@ public class SingularisInteraction : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"NetCore",
+				"Projects",
 
 				"UMG",
 				"Slate",
@@ -20,10 +21,12 @@ public class SingularisInteraction : ModuleRules
 				"InputCore",
 				"EnhancedInput",
 
-				"EngineSettings",
-				"DeveloperSettings",
+				"GameplayTags",
 
-				"GameplayTags"
+				"AIModule",
+
+				"EngineSettings",
+				"DeveloperSettings"
 			]
 		);
 	}

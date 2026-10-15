@@ -34,17 +34,16 @@
 #include <GameplayTagContainer.h>
 #include <Components/ActorComponent.h>
 
+#include "Interfaces/SingularisInteractionSessionHost.h"
 #include "Types/SingularisInteractionComponentType.h"
+#include "Types/SingularisInteractionIntentType.h"
+#include "Types/SingularisInteractionSessionType.h"
 #include "SingularisInteractionComponent.generated.h"
 
-struct FInputActionValue;
-class USingularisInteractionBehaviorStrategy;
-class USingularisInteractionStrategy;
+class AActor;
+class APawn;
 
 #pragma region 委托签名
-
-/** 开始交互时广播 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractionSignature);
 
 /** 交互启用时广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractionEnableSignature);
@@ -58,13 +57,22 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractionHoverSignature);
 /** 交互未悬浮时广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInteractionUnhoverSignature);
 
+/** 交互会话事件广播：会话端全事件流（本地广播） */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnInteractionSessionEventSignature,
+	FSingularisInteractionSessionEvent,
+	Event
+);
+
 #pragma endregion
 
 /**
  * 引力奇点交互组件。
  *
- * 承载单个可交互目标的交互语义：维护启用与悬浮状态，按策略标签分发交互管线，
- * 并在状态变化时驱动行为策略执行副作用。
+ * 会话端：以极小转移核（建立 / 达成 / 中止）管理交互者会话，
+ * 以意图为唯一输入、以会话为唯一推进规则、以事件流为唯一输出。
+ * 事件经本地广播传播，连续语义由推进事件承载；
+ * 组件不感知意图来自何种输入设备，玩家、AI 与脚本经同一入口在同一规则下结算。
  */
 UCLASS(
 	Blueprintable,
@@ -72,7 +80,8 @@ UCLASS(
 	ClassGroup = ("Singularis"),
 	meta = (BlueprintSpawnableComponent, DisplayName = "引力奇点交互组件")
 )
-class SINGULARISINTERACTION_API USingularisInteractionComponent : public UActorComponent
+class SINGULARISINTERACTION_API USingularisInteractionComponent : public UActorComponent,
+                                                                  public ISingularisInteractionSessionHost
 {
 	GENERATED_BODY()
 
@@ -88,7 +97,7 @@ public:
 	)
 	TArray<FComponentReference> TargetComponentReferences{};
 
-	/** 交互策略管线映射，键为策略标签，值为按序执行的策略管线 */
+	/** 交互策略管线映射，键为策略标签，值为会话原型与有序响应集的组合 */
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
@@ -101,26 +110,18 @@ public:
 	)
 	TMap<FGameplayTag, FSingularisInteractionStrategyPipeline> InteractionStrategyPipelineMapping{};
 
-	/** 交互行为策略集，响应启用、禁用、悬浮与未悬浮状态变化 */
+	/** 交互行为集，响应启用、禁用、悬浮与未悬浮状态变化 */
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
 		Category = "引力奇点交互组件",
-		meta = (DisplayName = "交互行为策略集")
+		meta = (DisplayName = "交互行为集")
 	)
-	TArray<FSingularisInteractionBehaviorStrategyEntry> InteractionBehaviorStrategies{};
+	TArray<FSingularisInteractionBehaviorEntry> InteractionBehaviors{};
 
 #pragma endregion
 
 #pragma region Event Dispatcher
-
-	/** 开始交互时广播 */
-	UPROPERTY(
-		BlueprintAssignable,
-		Category = "引力奇点交互组件|事件分发器",
-		meta = (DisplayName = "开始交互时触发")
-	)
-	FOnInteractionSignature OnInteractionEvent{};
 
 	/** 交互启用时广播 */
 	UPROPERTY(
@@ -154,6 +155,14 @@ public:
 	)
 	FOnInteractionUnhoverSignature OnInteractionUnhoverEvent{};
 
+	/** 交互会话事件广播 */
+	UPROPERTY(
+		BlueprintAssignable,
+		Category = "引力奇点交互组件|事件分发器",
+		meta = (DisplayName = "交互会话事件时触发")
+	)
+	FOnInteractionSessionEventSignature OnInteractionSessionEvent{};
+
 #pragma endregion
 
 private:
@@ -164,6 +173,9 @@ private:
 
 	/** 当前是否被悬浮 */
 	bool bIsHovered = false;
+
+	/** 活跃会话表，键为交互者 */
+	TMap<TWeakObjectPtr<AActor>, FSingularisInteractionSessionRecord> ActiveSessions{};
 
 #pragma endregion
 
@@ -177,6 +189,23 @@ public:
 #pragma region ActorComponent Interface
 
 	virtual void BeginPlay() override;
+	virtual void TickComponent(
+		float DeltaTime,
+		ELevelTick TickType,
+		FActorComponentTickFunction* ThisTickFunction
+	) override;
+
+#pragma endregion
+
+#pragma region ISingularisInteractionSessionHost Interface
+
+	virtual void HostEmitSessionEvent_Implementation(
+		USingularisInteractionSession* Session,
+		const FGameplayTag& EventTag,
+		float Alpha
+	) override;
+	virtual void HostCompleteSession_Implementation(USingularisInteractionSession* Session) override;
+	virtual void HostCancelSession_Implementation(USingularisInteractionSession* Session) override;
 
 #pragma endregion
 
@@ -206,7 +235,7 @@ public:
 	)
 	bool Hovered() const { return bIsHovered; }
 
-	/** 设置启用状态。状态未变化时幂等返回，变化后广播事件并驱动行为策略 */
+	/** 设置启用状态。状态未变化时幂等返回，变化后广播事件并驱动行为；禁用时取消全部活跃会话 */
 	UFUNCTION(
 		BlueprintCallable,
 		Category = "引力奇点交互组件|API",
@@ -214,7 +243,7 @@ public:
 	)
 	void SetEnabled(bool IsEnabled);
 
-	/** 设置悬浮状态。状态未变化时幂等返回，变化后广播事件并驱动行为策略 */
+	/** 设置悬浮状态。状态未变化时幂等返回，变化后广播事件并驱动行为 */
 	UFUNCTION(
 		BlueprintCallable,
 		Category = "引力奇点交互组件|API",
@@ -222,29 +251,39 @@ public:
 	)
 	void SetHovered(bool IsHovered);
 
+	/**
+	 * 查询指定策略标签匹配管线的会话原型。
+	 *
+	 * 供交互者端派生镜像实例（本地预测）使用；无匹配管线或会话未配置时返回 nullptr。
+	 *
+	 * @param StrategyTag 策略标签。
+	 * @return 会话原型。
+	 */
+	UFUNCTION(
+		BlueprintPure,
+		Category = "引力奇点交互组件|API",
+		meta = (DisplayName = "GetInteractionSession")
+	)
+	USingularisInteractionSession* GetInteractionSession(const FGameplayTag& StrategyTag) const;
+
 #pragma endregion
 
 #pragma region SPI
 
 	/**
-	 * 以指定交互策略标签触发一次交互。
+	 * 会话入口：接收交互者意图。
 	 *
-	 * 仅服务器权威有效；按标签层级匹配策略管线并依次执行。
+	 * 主导航（Press）建立会话，其余意图转发至会话实例。
+	 * 经交互子系统单一入口转交，玩家、AI 与脚本共用同一通路。
 	 *
-	 * @param StrategyTag 触发的交互策略标签。
-	 * @param PlayerController 发起交互的玩家控制器。
-	 * @param InputActionValue 触发交互的输入值。
+	 * @param Interactor 交互者。
+	 * @param StrategyTag 会话对应的策略标签。
+	 * @param Intent 交互者提交的意图。
 	 */
-	UFUNCTION(
-		BlueprintCallable,
-		BlueprintAuthorityOnly,
-		Category = "引力奇点交互组件|SPI",
-		meta = (DisplayName = "TryInteraction")
-	)
-	void TryInteraction(
+	void ReceiveInteractionIntent(
+		AActor* Interactor,
 		const FGameplayTag& StrategyTag,
-		APlayerController* PlayerController,
-		const FInputActionValue& InputActionValue
+		const FSingularisInteractionIntent& Intent
 	);
 
 #pragma endregion
@@ -252,8 +291,43 @@ public:
 private:
 #pragma region Internal Function
 
-	/** 向网络子系统登记策略子对象以参与复制 */
-	void RegisterInteractionSubObjects();
+	/** 将交互目标组件引用登记进映射子系统 */
+	void RegisterInteractionMappings();
+
+	/** 建立会话：管线匹配、开始判据、派生会话实例并驱动 Begin */
+	void BeginSession(AActor* Interactor, const FGameplayTag& StrategyTag);
+
+	/** 拒绝会话：广播取消反馈事件 */
+	void RejectSession(AActor* Interactor, const FGameplayTag& StrategyTag);
+
+	/** 结算会话：摘除记录、驱动结算事件与会话收尾，会话不存在时幂等返回 */
+	void SettleSession(const TWeakObjectPtr<AActor>& Interactor, bool bCompleted);
+
+	/** 驱动会话事件：本地广播、响应分发与全局观察 */
+	void DriveSessionEvent(
+		const FSingularisInteractionSessionRecord& Record,
+		const FGameplayTag& EventTag,
+		float Alpha
+	);
+
+	/** 驱动匹配管线响应消费会话事件 */
+	void DriveSessionResponses(const FSingularisInteractionSessionEvent& Event);
+
+	/** 组装会话上下文 */
+	FSingularisInteractionSessionContext BuildSessionContext(
+		const TWeakObjectPtr<AActor>& Interactor,
+		const FGameplayTag& StrategyTag,
+		float Elapsed
+	);
+
+	/** 依据会话表空非空切换组件 Tick */
+	void RefreshSessionTick();
+
+	/** 按会话实例反查所属会话的交互者 */
+	TWeakObjectPtr<AActor> FindSessionInteractor(const USingularisInteractionSession* Session) const;
+
+	/** 由交互者解析触发者 Pawn */
+	static APawn* ResolveInstigator(AActor* Interactor);
 
 #pragma endregion
 };

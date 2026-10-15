@@ -1,4 +1,4 @@
-﻿/* ====================================================================== *
+/* ====================================================================== *
  * SingularisInteractorWidgetComponent.cpp                                *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
@@ -36,13 +36,10 @@
 #include <UObject/ConstructorHelpers.h>
 
 #include "SingularisInteraction.h"
-#include "Components/SingularisInteractionComponent.h"
 #include "Components/SingularisInteractorComponent.h"
 
 USingularisInteractorWidgetComponent::USingularisInteractorWidgetComponent()
 {
-	SetIsReplicatedByDefault(false);
-
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.bCanEverTick = false;
 
@@ -69,7 +66,7 @@ void USingularisInteractorWidgetComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	checkf(GetOwner()->IsA<AHUD>(), TEXT("SingularisQuestWidgetComponent: Owner is not HUD"));
+	checkf(GetOwner()->IsA<AHUD>(), TEXT("[%s] Owner 非 HUD"), *GetNameSafe(GetOwner()));
 
 	OwnerHUD = Cast<AHUD>(GetOwner());
 
@@ -128,7 +125,7 @@ void USingularisInteractorWidgetComponent::SetInteractorView(
 void USingularisInteractorWidgetComponent::HandleTargetChanged(
 	USingularisInteractionComponent* OldTarget,
 	USingularisInteractionComponent* NewTarget
-) const
+)
 {
 	if (!IsValid(InteractorView.GetObject())) return;
 
@@ -139,14 +136,14 @@ void USingularisInteractorWidgetComponent::HandleTargetChanged(
 	);
 }
 
-void USingularisInteractorWidgetComponent::HandleTriggered(
+void USingularisInteractorWidgetComponent::HandleSessionEvent(
 	USingularisInteractionComponent* Target,
-	const FGameplayTag StrategyTag
-) const
+	FSingularisInteractionSessionEvent Event
+)
 {
 	if (!IsValid(InteractorView.GetObject())) return;
 
-	ISingularisInteractorViewInterface::Execute_OnTriggered(InteractorView.GetObject(), Target, StrategyTag);
+	ISingularisInteractorViewInterface::Execute_OnSessionEvent(InteractorView.GetObject(), Target, Event);
 }
 
 void USingularisInteractorWidgetComponent::CreateInteractorView()
@@ -216,9 +213,9 @@ void USingularisInteractorWidgetComponent::ObserveInteractorComponent()
 		this,
 		&USingularisInteractorWidgetComponent::HandleTargetChanged
 	);
-	InteractorComponent->OnInteractionTriggeredEvent.AddDynamic(
+	InteractorComponent->OnInteractorSessionEvent.AddDynamic(
 		this,
-		&USingularisInteractorWidgetComponent::HandleTriggered
+		&USingularisInteractorWidgetComponent::HandleSessionEvent
 	);
 
 	// 4) 绑定后主动拉取一次全量状态，消除错过事件导致的空白期
@@ -233,9 +230,7 @@ void USingularisInteractorWidgetComponent::ObserveInteractorComponent()
 	);
 }
 
-void USingularisInteractorWidgetComponent::FullPull(
-	const USingularisInteractorComponent* InteractorComponent
-) const
+void USingularisInteractorWidgetComponent::FullPull(const USingularisInteractorComponent* InteractorComponent) const
 {
 	if (!IsValid(InteractorView.GetObject()) || !IsValid(InteractorComponent)) return;
 

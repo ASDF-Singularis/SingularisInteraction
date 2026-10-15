@@ -30,20 +30,34 @@
 
 #include "Types/SingularisInteractionGameplayTags.h"
 
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(
-	SingularisInteraction,
-	"Singularis.Interaction",
-	"Singularis Interaction"
-);
+#include <NativeGameplayTags.h>
 
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction, "Singularis.Interaction", "交互域根标签")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Intent, "Singularis.Interaction.Intent", "意图域根标签")
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(
-	SingularisInteraction_Strategy,
-	"Singularis.Interaction.Strategy",
-	"Singularis Interaction Strategy"
-);
-
+	SingularisInteraction_Intent_Press,
+	"Singularis.Interaction.Intent.Press",
+	"意图：主张，会话建立的唯一触发"
+)
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Intent_Release, "Singularis.Interaction.Intent.Release", "意图：撤回")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Intent_Value, "Singularis.Interaction.Intent.Value", "意图：值")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Event, "Singularis.Interaction.Event", "事件域根标签")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Event_Begin, "Singularis.Interaction.Event.Begin", "事件：会话建立")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+	SingularisInteraction_Event_Progress,
+	"Singularis.Interaction.Event.Progress",
+	"事件：会话推进，唯一连续事件"
+)
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Event_Settle, "Singularis.Interaction.Event.Settle", "事件：会话定格")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Event_Complete, "Singularis.Interaction.Event.Complete", "事件：会话达成")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+	SingularisInteraction_Event_Cancel,
+	"Singularis.Interaction.Event.Cancel",
+	"事件：会话中止，含准入拒绝反馈"
+)
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Strategy, "Singularis.Interaction.Strategy", "策略域根标签")
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(
 	SingularisInteraction_Strategy_Default,
 	"Singularis.Interaction.Strategy.Default",
-	"Singularis Interaction Strategy Default"
-);
+	"默认策略标签"
+)

@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractorComponentType.cpp                                  *
+ * SingularisInteractionDriverType.cpp                                    *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/10/13 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,4 +28,4 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#include "Types/SingularisInteractorComponentType.h"
+#include "Types/SingularisInteractionDriverType.h"

@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionStrategyType.cpp                                  *
+ * SingularisInteractionDriverType.h                                      *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/10/13 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,4 +28,42 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#include "Types/SingularisInteractionStrategyType.h"
+#pragma once
+
+#include <CoreMinimal.h>
+#include <GameplayTagContainer.h>
+
+#include "SingularisInteractionDriverType.generated.h"
+
+class UInputAction;
+
+/**
+ * 引力奇点交互输入绑定。
+ *
+ * 增强输入驱动器的配置单元：把输入动作映射到策略标签，
+ * 可选携带连续值（Triggered → Intent.Value）。
+ */
+USTRUCT(BlueprintType)
+struct SINGULARISINTERACTION_API FSingularisInteractionInputBinding
+{
+	GENERATED_BODY()
+
+	/** 输入动作 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UInputAction> InputAction = nullptr;
+
+	/** 动作映射的策略标签 */
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadWrite,
+		meta = (
+			Categories = "Singularis.Interaction.Strategy",
+			ForceSelection = "true"
+		)
+	)
+	FGameplayTag StrategyTag{};
+
+	/** 是否携带连续值（Triggered → Intent.Value，轴交互开启） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bCarryValue = false;
+};

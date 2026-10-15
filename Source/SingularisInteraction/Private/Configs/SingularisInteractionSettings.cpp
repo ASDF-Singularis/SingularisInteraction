@@ -35,10 +35,7 @@ USingularisInteractionSettings::USingularisInteractionSettings() {}
 
 #if WITH_EDITOR
 
-FName USingularisInteractionSettings::GetCategoryName() const
-{
-	return FName("Singularis");
-}
+FName USingularisInteractionSettings::GetCategoryName() const { return FName("Singularis"); }
 
 FText USingularisInteractionSettings::GetSectionText() const
 {

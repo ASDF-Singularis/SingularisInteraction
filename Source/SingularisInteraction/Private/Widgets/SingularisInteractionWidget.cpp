@@ -34,8 +34,6 @@
 
 void USingularisInteractionWidget::OnRefresh_Implementation(bool bEnabled, bool bHovered) {}
 
-void USingularisInteractionWidget::OnTrigger_Implementation() {}
-
 void USingularisInteractionWidget::OnHover_Implementation() {}
 
 void USingularisInteractionWidget::OnUnhover_Implementation() {}
@@ -43,3 +41,5 @@ void USingularisInteractionWidget::OnUnhover_Implementation() {}
 void USingularisInteractionWidget::OnEnterRange_Implementation() {}
 
 void USingularisInteractionWidget::OnExitRange_Implementation() {}
+
+void USingularisInteractionWidget::OnSessionEvent_Implementation(const FSingularisInteractionSessionEvent& Event) {}

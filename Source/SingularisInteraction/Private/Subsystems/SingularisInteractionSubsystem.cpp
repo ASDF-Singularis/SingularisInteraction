@@ -1,4 +1,4 @@
-﻿/* ====================================================================== *
+/* ====================================================================== *
  * SingularisInteractionSubsystem.cpp                                      *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
@@ -31,6 +31,7 @@
 #include "Subsystems/SingularisInteractionSubsystem.h"
 
 #include <Components/PrimitiveComponent.h>
+#include <GameFramework/Actor.h>
 
 #include "SingularisInteraction.h"
 #include "Components/SingularisInteractionComponent.h"
@@ -40,28 +41,30 @@ USingularisInteractionSubsystem::USingularisInteractionSubsystem() {}
 void USingularisInteractionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-
-	UE_LOG(
-		LogSingularisInteraction,
-		Display,
-		TEXT("[%s] Initialize：交互映射子系统初始化完成"),
-		*GetNameSafe(this)
-	);
 }
 
-void USingularisInteractionSubsystem::Deinitialize()
+void USingularisInteractionSubsystem::Deinitialize() { Super::Deinitialize(); }
+
+bool USingularisInteractionSubsystem::SubmitInteractionIntent(
+	AActor* Interactor,
+	USingularisInteractionComponent* TargetInteractionComponent,
+	const FGameplayTag StrategyTag,
+	const FSingularisInteractionIntent Intent
+)
 {
-	UE_LOG(
-		LogSingularisInteraction,
-		Display,
-		TEXT("[%s] Deinitialize：交互映射子系统卸载，注销 %d 条映射"),
-		*GetNameSafe(this),
-		Map.Num()
-	);
+	// 1) 零信任校验
+	if (!IsValid(Interactor) || !IsValid(TargetInteractionComponent))
+	{
+		UE_LOG(LogSingularisInteraction, Warning, TEXT("SubmitInteractionIntent：交互者或目标交互组件无效，拒绝请求"));
+		return false;
+	}
 
-	Map.Empty();
+	if (!StrategyTag.IsValid() || !Intent.IntentTag.IsValid())
+		return false;
 
-	Super::Deinitialize();
+	// 2) 转交目标组件（会话唯一结算入口）
+	TargetInteractionComponent->ReceiveInteractionIntent(Interactor, StrategyTag, Intent);
+	return true;
 }
 
 void USingularisInteractionSubsystem::RegisterMapping(
@@ -69,31 +72,20 @@ void USingularisInteractionSubsystem::RegisterMapping(
 	USingularisInteractionComponent* InteractionComponent
 )
 {
-	// 1) 空指针守卫
+	// 1) 零信任校验
 	if (!IsValid(PrimitiveComponent) || !IsValid(InteractionComponent))
-	{
-		UE_LOG(
-			LogSingularisInteraction,
-			Warning,
-			TEXT("[%s] RegisterMapping：入参非法（碰撞组件 %s，交互组件 %s）"),
-			*GetNameSafe(this),
-			*GetNameSafe(PrimitiveComponent),
-			*GetNameSafe(InteractionComponent)
-		);
 		return;
-	}
 
-	// 2) 登记映射，重复登记时覆盖既有映射
+	// 2) 登记映射（重复登记覆盖既有映射）
 	Map.Add(PrimitiveComponent, InteractionComponent);
 }
 
 void USingularisInteractionSubsystem::UnregisterMapping(UPrimitiveComponent* PrimitiveComponent)
 {
-	// 1) 空指针守卫
+	// 1) 注销映射（未登记时幂等返回）
 	if (!IsValid(PrimitiveComponent))
 		return;
 
-	// 2) 移除映射，未登记时幂等返回
 	Map.Remove(PrimitiveComponent);
 }
 
@@ -101,13 +93,20 @@ USingularisInteractionComponent* USingularisInteractionSubsystem::MappingCompone
 	UPrimitiveComponent* PrimitiveComponent
 )
 {
-	// 1) 空指针守卫
+	// 1) 零信任校验
 	if (!IsValid(PrimitiveComponent))
 		return nullptr;
 
-	// 2) 哈希查找 → 弱引用有效性检查 → 解引用
-	if (const TWeakObjectPtr<USingularisInteractionComponent>* Found = Map.Find(PrimitiveComponent))
-		if (Found->IsValid()) return Found->Get();
+	// 2) 哈希查找后校验弱引用有效性
+	const TWeakObjectPtr<USingularisInteractionComponent>* Found = Map.Find(PrimitiveComponent);
+	return Found && Found->IsValid() ? Found->Get() : nullptr;
+}
 
-	return nullptr;
+void USingularisInteractionSubsystem::NotifyWorldSessionEvent(
+	USingularisInteractionComponent* Target,
+	const FSingularisInteractionSessionEvent& Event
+)
+{
+	// 1) 广播世界级会话事件（全局观察 / 遥测）
+	OnWorldInteractionSessionEvent.Broadcast(Target, Event);
 }

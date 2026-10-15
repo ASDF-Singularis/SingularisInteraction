@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionBehaviorStrategyFactory.cpp                       *
+ * SingularisInteractionResponseFactory.cpp                               *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/30 | Author: TrifingZW                                *
+ * Created: 2026/01/22 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,18 +28,18 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
-#include "Factories/SingularisInteractionBehaviorStrategyFactory.h"
+#include "Factories/SingularisInteractionResponseFactory.h"
 
 #include <Kismet2/KismetEditorUtilities.h>
 
-USingularisInteractionBehaviorStrategyFactory::USingularisInteractionBehaviorStrategyFactory()
+USingularisInteractionResponseFactory::USingularisInteractionResponseFactory()
 {
 	bCreateNew = true;
 	bEditAfterNew = true;
-	SupportedClass = USingularisInteractionBehaviorStrategy::StaticClass();
+	SupportedClass = USingularisInteractionResponse::StaticClass();
 }
 
-UObject* USingularisInteractionBehaviorStrategyFactory::FactoryCreateNew(
+UObject* USingularisInteractionResponseFactory::FactoryCreateNew(
 	UClass* InClass,
 	UObject* InParent,
 	const FName InName,
@@ -49,9 +49,9 @@ UObject* USingularisInteractionBehaviorStrategyFactory::FactoryCreateNew(
 )
 {
 	// 1) 利用 KismetEditorUtilities 自动生成蓝图资产
-	// 2) 强制将其基类指派为最新的交互行为策略基础类 USingularisInteractionBehaviorStrategy
+	// 2) 强制将其基类指派为最新的交互响应基础类 USingularisInteractionResponse
 	return FKismetEditorUtilities::CreateBlueprint(
-		USingularisInteractionBehaviorStrategy::StaticClass(),
+		USingularisInteractionResponse::StaticClass(),
 		InParent,
 		InName,
 		BPTYPE_Normal,
@@ -61,7 +61,4 @@ UObject* USingularisInteractionBehaviorStrategyFactory::FactoryCreateNew(
 	);
 }
 
-bool USingularisInteractionBehaviorStrategyFactory::ShouldShowInNewMenu() const
-{
-	return true;
-}
+bool USingularisInteractionResponseFactory::ShouldShowInNewMenu() const { return true; }

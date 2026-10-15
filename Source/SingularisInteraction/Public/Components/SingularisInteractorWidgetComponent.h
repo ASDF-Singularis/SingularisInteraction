@@ -1,4 +1,4 @@
-﻿/* ====================================================================== *
+/* ====================================================================== *
  * SingularisInteractorWidgetComponent.h                                  *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
@@ -31,24 +31,25 @@
 #pragma once
 
 #include <CoreMinimal.h>
-#include <GameplayTagContainer.h>
 #include <Components/ActorComponent.h>
 #include <UObject/ScriptInterface.h>
 
 #include "Interfaces/SingularisInteractorViewInterface.h"
+#include "Types/SingularisInteractionSessionType.h"
 #include "SingularisInteractorWidgetComponent.generated.h"
 
+class AHUD;
 class APlayerController;
 class UUserWidget;
-class USingularisInteractionComponent;
 class USingularisInteractorComponent;
+class USingularisInteractionComponent;
 
 /**
  * 引力奇点交互者控件组件。
  *
  * 屏幕空间 HUD 观察者控件组件设计模式典范：
  * 挂载于玩家 HUD，实例化交互者控件并添加至视口，
- * 订阅交互者组件的目标变更与交互触发事件，
+ * 订阅交互者组件的目标变更与本地会话流事件，
  * 将交互者状态与事件经 ISingularisInteractorViewInterface（SPI）推送至视图。
  * HUD 作用域观察者，装配以本地玩家检查过滤归属，可关闭自动创建后由外部注入视图；
  * 仅依赖接口而非具体控件类型，任意实现该接口的 UObject 均可作为视图接入。
@@ -149,22 +150,22 @@ public:
 private:
 #pragma region Callback
 
-	/** 交互目标变更回调：转发至视图 */
+	/** 目标变更回调：转发至视图 */
 	UFUNCTION()
 	void HandleTargetChanged(
 		USingularisInteractionComponent* OldTarget,
 		USingularisInteractionComponent* NewTarget
-	) const;
+	);
 
-	/** 交互触发回调：转发至视图 */
+	/** 交互者会话事件回调：转发至视图 */
 	UFUNCTION()
-	void HandleTriggered(USingularisInteractionComponent* Target, FGameplayTag StrategyTag) const;
+	void HandleSessionEvent(USingularisInteractionComponent* Target, FSingularisInteractionSessionEvent Event);
 
 #pragma endregion
 
 #pragma region Internal Function
 
-	/** 在本地客户端实例化交互者视图并添加到视口 */
+	/** 在本地玩家侧实例化交互者视图并添加到视口 */
 	void CreateInteractorView();
 
 	/** 绑定交互者组件事件并推送一次全量状态 */

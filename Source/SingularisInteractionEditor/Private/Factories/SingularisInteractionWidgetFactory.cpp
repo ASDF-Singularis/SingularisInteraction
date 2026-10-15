@@ -63,7 +63,4 @@ UObject* USingularisInteractionWidgetFactory::FactoryCreateNew(
 	);
 }
 
-bool USingularisInteractionWidgetFactory::ShouldShowInNewMenu() const
-{
-	return Super::ShouldShowInNewMenu();
-}
+bool USingularisInteractionWidgetFactory::ShouldShowInNewMenu() const { return true; }

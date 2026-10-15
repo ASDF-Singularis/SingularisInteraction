@@ -32,7 +32,6 @@
 
 #include <WidgetBlueprint.h>
 #include <Kismet2/KismetEditorUtilities.h>
-#include <Widgets/SingularisInteractorWidget.h>
 
 USingularisInteractorWidgetFactory::USingularisInteractorWidgetFactory()
 {
@@ -45,13 +44,13 @@ UObject* USingularisInteractorWidgetFactory::FactoryCreateNew(
 	UClass* InClass,
 	UObject* InParent,
 	const FName InName,
-	const EObjectFlags Flags,
+	EObjectFlags Flags,
 	UObject* Context,
 	FFeedbackContext* Warn
 )
 {
 	// 1) 利用 KismetEditorUtilities 自动生成控件蓝图资产
-	// 2) 指定 UWidgetBlueprint 蓝图类型与 UWidgetBlueprintGeneratedClass 生成类类型
+	// 2) 强制将其基类指派为最新的交互者控件类 USingularisInteractorWidget
 	return FKismetEditorUtilities::CreateBlueprint(
 		USingularisInteractorWidget::StaticClass(),
 		InParent,
@@ -63,7 +62,4 @@ UObject* USingularisInteractorWidgetFactory::FactoryCreateNew(
 	);
 }
 
-bool USingularisInteractorWidgetFactory::ShouldShowInNewMenu() const
-{
-	return Super::ShouldShowInNewMenu();
-}
+bool USingularisInteractorWidgetFactory::ShouldShowInNewMenu() const { return true; }

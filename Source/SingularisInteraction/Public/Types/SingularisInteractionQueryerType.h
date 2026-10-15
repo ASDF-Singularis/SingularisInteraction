@@ -83,10 +83,7 @@ struct SINGULARISINTERACTION_API FSingularisInteractionQueryerResult
 	 *
 	 * @return Actor 与交互组件均有效时返回 true。
 	 */
-	bool IsInteractionValid() const
-	{
-		return IsValid(InteractionActor) && IsValid(InteractionComponent);
-	}
+	bool IsInteractionValid() const { return IsValid(InteractionActor) && IsValid(InteractionComponent); }
 
 	/**
 	 * 比较两个查询结果是否指向同一交互目标。

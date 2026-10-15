@@ -36,6 +36,8 @@
 #include "Types/SingularisInteractionQueryerType.h"
 #include "SingularisInteractionQueryer.generated.h"
 
+class AActor;
+class UPrimitiveComponent;
 class USingularisInteractionComponent;
 
 /**

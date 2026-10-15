@@ -1,4 +1,4 @@
-﻿/* ====================================================================== *
+/* ====================================================================== *
  * SingularisInteractorViewInterface.h                                    *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
@@ -31,9 +31,9 @@
 #pragma once
 
 #include <CoreMinimal.h>
-#include <GameplayTagContainer.h>
 #include <UObject/Interface.h>
 
+#include "Types/SingularisInteractionSessionType.h"
 #include "SingularisInteractorViewInterface.generated.h"
 
 class USingularisInteractionComponent;
@@ -41,8 +41,8 @@ class USingularisInteractionComponent;
 /**
  * 引力奇点交互者视图接口。
  *
- * 交互者视图契约：实现者接收交互者组件的全量刷新与增量事件，由交互者控件组件经 Execute_ 调用。
- * 实现者不限于控件——任意 UObject 实现本接口即可接入驱动。
+ * 交互者视图契约：实现者接收交互者组件的全量刷新、目标变更与本地会话流事件，
+ * 由交互者控件组件经 Execute_ 调用。实现者不限于控件——任意 UObject 实现本接口即可接入驱动。
  */
 UINTERFACE(Blueprintable, BlueprintType)
 class USingularisInteractorViewInterface : public UInterface
@@ -50,7 +50,7 @@ class USingularisInteractorViewInterface : public UInterface
 	GENERATED_BODY()
 };
 
-/** 交互者视图实现接口：接收交互者当前目标的全量刷新、目标变更与触发事件。 */
+/** 交互者视图实现接口：接收交互者当前目标的全量刷新、目标变更与本地会话流事件。 */
 class SINGULARISINTERACTION_API ISingularisInteractorViewInterface
 {
 	GENERATED_BODY()
@@ -78,12 +78,20 @@ public:
 	)
 	void OnTargetChanged(USingularisInteractionComponent* OldTarget, USingularisInteractionComponent* NewTarget);
 
-	/** 交互者发起一次交互请求。 */
+	/**
+	 * 交互者本地会话流事件。
+	 *
+	 * 本地玩家交互者为本地镜像产物（零延迟），其余交互者为会话端事件转发；
+	 * 玩家侧 HUD 进度与阶段反馈建议消费本事件。
+	 *
+	 * @param Target 会话目标组件。
+	 * @param Event 会话事件，含事件标签、量值与会话上下文。
+	 */
 	UFUNCTION(
 		BlueprintNativeEvent,
 		BlueprintCallable,
 		Category = "引力奇点交互者视图接口",
-		meta = (DisplayName = "交互触发")
+		meta = (DisplayName = "会话事件")
 	)
-	void OnTriggered(USingularisInteractionComponent* Target, FGameplayTag StrategyTag);
+	void OnSessionEvent(USingularisInteractionComponent* Target, const FSingularisInteractionSessionEvent& Event);
 };

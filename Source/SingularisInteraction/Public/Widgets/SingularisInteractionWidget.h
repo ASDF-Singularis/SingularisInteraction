@@ -52,9 +52,6 @@ public:
 	/** 交互状态全量刷新：启用与悬浮。 */
 	virtual void OnRefresh_Implementation(bool bEnabled, bool bHovered) override;
 
-	/** 交互触发。 */
-	virtual void OnTrigger_Implementation() override;
-
 	/** 交互悬浮。 */
 	virtual void OnHover_Implementation() override;
 
@@ -66,4 +63,7 @@ public:
 
 	/** 离开交互提示范围。 */
 	virtual void OnExitRange_Implementation() override;
+
+	/** 交互会话事件。 */
+	virtual void OnSessionEvent_Implementation(const FSingularisInteractionSessionEvent& Event) override;
 };

@@ -33,6 +33,7 @@
 #include <Blueprint/UserWidget.h>
 #include <Components/ShapeComponent.h>
 #include <Components/WidgetComponent.h>
+#include <Engine/World.h>
 #include <GameFramework/Pawn.h>
 #include <GameFramework/PlayerController.h>
 #include <UObject/ConstructorHelpers.h>
@@ -45,8 +46,6 @@
 
 USingularisInteractionWidgetComponent::USingularisInteractionWidgetComponent()
 {
-	SetIsReplicatedByDefault(false);
-
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.bCanEverTick = false;
 
@@ -83,21 +82,21 @@ void USingularisInteractionWidgetComponent::BeginPlay()
 	ObserveInteractionComponent();
 }
 
-void USingularisInteractionWidgetComponent::HandleInteraction() const
+void USingularisInteractionWidgetComponent::HandleSessionEvent(FSingularisInteractionSessionEvent Event)
 {
 	if (!IsValid(InteractionView.GetObject())) return;
 
-	ISingularisInteractionViewInterface::Execute_OnTrigger(InteractionView.GetObject());
+	ISingularisInteractionViewInterface::Execute_OnSessionEvent(InteractionView.GetObject(), Event);
 }
 
-void USingularisInteractionWidgetComponent::HandleHover() const
+void USingularisInteractionWidgetComponent::HandleHover()
 {
 	if (!IsValid(InteractionView.GetObject())) return;
 
 	ISingularisInteractionViewInterface::Execute_OnHover(InteractionView.GetObject());
 }
 
-void USingularisInteractionWidgetComponent::HandleUnhover() const
+void USingularisInteractionWidgetComponent::HandleUnhover()
 {
 	if (!IsValid(InteractionView.GetObject())) return;
 
@@ -113,7 +112,7 @@ void USingularisInteractionWidgetComponent::ProxyWidgetComponent()
 		UE_LOG(
 			LogSingularisInteraction,
 			Warning,
-			TEXT("[%s] ProxyWidgetComponent：非本地客户端，跳过控件创建"),
+			TEXT("[%s] ProxyWidgetComponent：非本地玩家控制器，跳过控件创建"),
 			*GetNameSafe(GetOwner())
 		);
 		return;
@@ -224,11 +223,7 @@ void USingularisInteractionWidgetComponent::ObserveInteractionComponent()
 		return;
 	}
 
-	// 3) 订阅交互状态事件
-	InteractionComponent->OnInteractionEvent.AddDynamic(
-		this,
-		&USingularisInteractionWidgetComponent::HandleInteraction
-	);
+	// 3) 订阅交互状态与会话事件
 	InteractionComponent->OnInteractionHoverEvent.AddDynamic(
 		this,
 		&USingularisInteractionWidgetComponent::HandleHover
@@ -236,6 +231,10 @@ void USingularisInteractionWidgetComponent::ObserveInteractionComponent()
 	InteractionComponent->OnInteractionUnhoverEvent.AddDynamic(
 		this,
 		&USingularisInteractionWidgetComponent::HandleUnhover
+	);
+	InteractionComponent->OnInteractionSessionEvent.AddDynamic(
+		this,
+		&USingularisInteractionWidgetComponent::HandleSessionEvent
 	);
 
 	// 4) 绑定后主动拉取一次全量状态，消除错过事件导致的空白期

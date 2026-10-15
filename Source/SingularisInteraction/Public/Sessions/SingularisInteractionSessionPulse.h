@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractorComponentType.h                                    *
+ * SingularisInteractionSessionPulse.h                                    *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/10/13 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -31,34 +31,69 @@
 #pragma once
 
 #include <CoreMinimal.h>
-#include <GameplayTagContainer.h>
 
-#include "SingularisInteractorComponentType.generated.h"
-
-class UInputAction;
+#include "Objects/SingularisInteractionSession.h"
+#include "SingularisInteractionSessionPulse.generated.h"
 
 /**
- * 引力奇点交互者输入。
+ * 引力奇点连点交互会话。
  *
- * 将增强输入动作映射到交互策略标签。
+ * 窗口期内累计主张达到次数即达成；窗口自最近一次主张起算，超时即中止。
+ * 首次主张由会话建立承载（Begin 即第一声），后续主张经意图转发计数。
  */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractorInput
+UCLASS(
+	NotBlueprintable,
+	BlueprintType,
+	ClassGroup = ("Singularis"),
+	meta = (DisplayName = "引力奇点连点交互会话")
+)
+class SINGULARISINTERACTION_API USingularisInteractionSessionPulse : public USingularisInteractionSession
 {
 	GENERATED_BODY()
 
-	/** 输入动作 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UInputAction* InputAction = nullptr;
+public:
+#pragma region Parameter
 
-	/** 输入动作触发的交互策略标签 */
+	/** 连点完成次数（至少 2 次） */
 	UPROPERTY(
-		EditAnywhere,
-		BlueprintReadWrite,
-		meta = (
-			Categories = "Singularis.Interaction.Strategy",
-			ForceSelection = "true"
-		)
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "引力奇点连点会话",
+		meta = (DisplayName = "连点完成次数", ClampMin = "2")
 	)
-	FGameplayTag StrategyTag{};
+	int32 PulseCount = 3;
+
+	/** 连点窗口期（秒），自最近一次主张起算 */
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "引力奇点连点会话",
+		meta = (DisplayName = "连点窗口期", ClampMin = "0.01", ForceUnits = "s")
+	)
+	float PulseWindow = 0.8f;
+
+#pragma endregion
+
+private:
+#pragma region State
+
+	/** 已计主张次数 */
+	int32 PulseCounter = 0;
+
+	/** 最近一次主张的会话时刻（秒） */
+	float LastPulseElapsed = 0.0f;
+
+#pragma endregion
+
+public:
+#pragma region SPI
+
+	virtual void Begin_Implementation(const FSingularisInteractionSessionContext& Context) override;
+	virtual void ReceiveIntent_Implementation(
+		const FSingularisInteractionSessionContext& Context,
+		const FSingularisInteractionIntent& Intent
+	) override;
+	virtual void Tick_Implementation(const FSingularisInteractionSessionContext& Context, float DeltaTime) override;
+
+#pragma endregion
 };

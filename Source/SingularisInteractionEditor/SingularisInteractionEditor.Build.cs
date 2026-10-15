@@ -17,6 +17,15 @@ public class SingularisInteractionEditor : ModuleRules
 
 				"UMG",
 				"UMGEditor",
+				"Slate",
+				"SlateCore",
+
+				"GameplayTags",
+				"GameplayTagsEditor",
+
+				"BlueprintGraph",
+				"KismetCompiler",
+				"Kismet",
 
 				"UnrealEd",
 				"AssetTools",

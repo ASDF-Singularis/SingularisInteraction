@@ -1,11 +1,11 @@
 /* ====================================================================== *
- * SingularisInteractionStrategyType.h                                    *
+ * SingularisInteractionDriver.cpp                                        *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
  *                                                                        *
  * Copyright (c) 2026 TrifingZW. All Rights Reserved.                     *
- * Created: 2026/01/21 | Author: TrifingZW                                *
+ * Created: 2026/10/13 | Author: TrifingZW                                *
  * Licensed under MIT License                                             *
  *                                                                        *
  * Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,47 +28,20 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 *
  * ====================================================================== */
 
+#include "Objects/SingularisInteractionDriver.h"
 
-#pragma once
-
-#include <CoreMinimal.h>
-#include <InputActionValue.h>
-
-#include "SingularisInteractionStrategyType.generated.h"
-
-class USingularisInteractionComponent;
-
-/**
- * 引力奇点交互策略上下文。
- *
- * 交互触发时由交互组件组装，描述发起者、承载者、目标与本次输入。
- */
-USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionStrategyContext
+USingularisInteractorComponent* USingularisInteractionDriver::GetInteractorComponent() const
 {
-	GENERATED_BODY()
+	return InteractorComponent.Get();
+}
 
-	/** 控制器 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AController* Controller = nullptr;
+void USingularisInteractionDriver::InitializeDriver_Implementation(
+	USingularisInteractorComponent* InInteractorComponent
+) { InteractorComponent = InInteractorComponent; }
 
-	/** 触发者 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	APawn* Instigator = nullptr;
+void USingularisInteractionDriver::DeinitializeDriver_Implementation() {}
 
-	/** 承载者 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AActor* Avatar = nullptr;
-
-	/** 目标 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<AActor> Target = nullptr;
-
-	/** 交互组件 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	USingularisInteractionComponent* InteractionComponent = nullptr;
-
-	/** 输入操作值 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FInputActionValue InputValue{};
-};
+void USingularisInteractionDriver::OnTargetChanged_Implementation(
+	USingularisInteractionComponent* OldTarget,
+	USingularisInteractionComponent* NewTarget
+) {}

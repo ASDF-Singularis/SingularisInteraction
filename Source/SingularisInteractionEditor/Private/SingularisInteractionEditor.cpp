@@ -33,11 +33,14 @@
 #include <AssetToolsModule.h>
 #include <IAssetTools.h>
 
-#include "Factories/SingularisInteractionBehaviorStrategyFactory.h"
+#include "Factories/SingularisInteractionBehaviorFactory.h"
 #include "Factories/SingularisInteractionQueryerFactory.h"
-#include "Factories/SingularisInteractionStrategyFactory.h"
+#include "Factories/SingularisInteractionResponseFactory.h"
+#include "Factories/SingularisInteractionSessionFactory.h"
 #include "Factories/SingularisInteractionWidgetFactory.h"
 #include "Factories/SingularisInteractorWidgetFactory.h"
+#include "Nodes/SingularisInteractionBlueprintCompileHooks.h"
+#include "Styles/SingularisInteractionEditorStyle.h"
 
 DEFINE_LOG_CATEGORY(LogSingularisInteractionEditor);
 
@@ -52,7 +55,7 @@ void FSingularisInteractionEditorModule::StartupModule()
 		LOCTEXT("SingularisCategory", "Singularis")
 	);
 
-	// 2) 登记五类资产行为
+	// 2) 登记六类资产行为
 	RegisterAssetTypeAction(
 		AssetTools,
 		MakeShareable(new FAssetTypeActions_SingularisInteractionQueryer(SingularisPluginCategory))
@@ -60,12 +63,17 @@ void FSingularisInteractionEditorModule::StartupModule()
 
 	RegisterAssetTypeAction(
 		AssetTools,
-		MakeShareable(new FAssetTypeActions_SingularisInteractionStrategy(SingularisPluginCategory))
+		MakeShareable(new FAssetTypeActions_SingularisInteractionSession(SingularisPluginCategory))
 	);
 
 	RegisterAssetTypeAction(
 		AssetTools,
-		MakeShareable(new FAssetTypeActions_SingularisInteractionBehaviorStrategy(SingularisPluginCategory))
+		MakeShareable(new FAssetTypeActions_SingularisInteractionResponse(SingularisPluginCategory))
+	);
+
+	RegisterAssetTypeAction(
+		AssetTools,
+		MakeShareable(new FAssetTypeActions_SingularisInteractionBehavior(SingularisPluginCategory))
 	);
 
 	RegisterAssetTypeAction(
@@ -78,17 +86,27 @@ void FSingularisInteractionEditorModule::StartupModule()
 		MakeShareable(new FAssetTypeActions_SingularisInteractorWidget(SingularisPluginCategory))
 	);
 
+	// 3) 登记蓝图编译 hook：把「会话事件」声明回填进响应类 CDO
+	FSingularisInteractionBlueprintCompileHook::Register(BlueprintCompileHandle);
+
+	// 4) 注册 Slate 样式集：K2 节点图标槽位
+	FSingularisInteractionEditorStyle::Register();
+
 	UE_LOG(
 		LogSingularisInteractionEditor,
 		Display,
-		TEXT("StartupModule：编辑器模块初始化完成，已登记 %d 项资产类型行为"),
+		TEXT("StartupModule：编辑器模块初始化完成，已登记 %d 项资产类型行为与蓝图编译 hook"),
 		CreatedAssetTypeActions.Num()
 	);
 }
 
 void FSingularisInteractionEditorModule::ShutdownModule()
 {
-	// 1) 编辑器关闭时 AssetTools 可能已卸载，需先检查再反注册
+	// 1) 先反注册 Slate 样式集与蓝图编译 hook（不依赖 AssetTools 存活状态）
+	FSingularisInteractionEditorStyle::Unregister();
+	FSingularisInteractionBlueprintCompileHook::Unregister(BlueprintCompileHandle);
+
+	// 2) 编辑器关闭时 AssetTools 可能已卸载，需先检查再反注册
 	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
 		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();

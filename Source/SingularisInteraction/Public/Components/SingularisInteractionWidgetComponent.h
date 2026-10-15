@@ -38,6 +38,9 @@
 #include "SingularisInteractionWidgetComponent.generated.h"
 
 struct FHitResult;
+class AActor;
+class APlayerController;
+class UPrimitiveComponent;
 class UUserWidget;
 
 /**
@@ -149,17 +152,17 @@ public:
 private:
 #pragma region Callback
 
-	/** 交互触发回调：转发至视图 */
+	/** 交互会话事件回调：转发至视图 */
 	UFUNCTION()
-	void HandleInteraction() const;
+	void HandleSessionEvent(FSingularisInteractionSessionEvent Event);
 
 	/** 交互悬浮回调：转发至视图 */
 	UFUNCTION()
-	void HandleHover() const;
+	void HandleHover();
 
 	/** 交互未悬浮回调：转发至视图 */
 	UFUNCTION()
-	void HandleUnhover() const;
+	void HandleUnhover();
 
 	/** 提示范围 BeginOverlap 回调：本地玩家进入范围时通知视图 */
 	UFUNCTION()
@@ -185,7 +188,7 @@ private:
 
 #pragma region Internal Function
 
-	/** 在本地客户端实例化交互视图并挂载到控件组件 */
+	/** 在本地玩家侧实例化交互视图并挂载到控件组件 */
 	void ProxyWidgetComponent();
 
 	/** 装配提示范围的交互通道与重叠回调 */

@@ -33,14 +33,41 @@
 #include <CoreMinimal.h>
 #include <NativeGameplayTags.h>
 
-/**
- * SingularisInteraction 插件使用的原生 GameplayTag 声明。
- *
- * 标签层级：
- *   Singularis.Interaction
- *   Singularis.Interaction.Strategy
- *   Singularis.Interaction.Strategy.Default
- */
+/** 交互域根标签 */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction);
+
+/** 意图域根标签：控制端到逻辑端的中性意图词汇，领域意图经标签开放扩展 */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Intent);
+
+/** 意图：主张（交互者发起交互，会话建立的唯一触发） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Intent_Press);
+
+/** 意图：撤回（交互者结束交互参与） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Intent_Release);
+
+/** 意图：值（连续量更新，轴值 / 力度） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Intent_Value);
+
+/** 事件域根标签：逻辑端到响应与表现的会话事件词汇，领域事件经标签开放扩展 */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event);
+
+/** 事件：会话建立（离散事件） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event_Begin);
+
+/** 事件：会话推进（唯一连续事件） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event_Progress);
+
+/** 事件：会话定格（离散事件；如拖动松手后的中间态落定） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event_Settle);
+
+/** 事件：会话达成（离散事件） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event_Complete);
+
+/** 事件：会话中止（离散事件；含准入拒绝反馈） */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event_Cancel);
+
+/** 策略域根标签 */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Strategy);
+
+/** 默认策略标签，绑定默认输入动作 */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Strategy_Default);
