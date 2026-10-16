@@ -328,7 +328,7 @@ private:
 	static APawn* ResolveInstigator(AActor* Interactor);
 
 	/** 启动镜像会话（以原型副本派生，绑定本组件为宿主） */
-	bool BeginMirror(USingularisInteractionSession* Archetype);
+	bool BeginMirror(const USingularisInteractionSession* Archetype);
 
 	/** 向镜像会话摄入意图 */
 	void FeedMirrorIntent(const FSingularisInteractionIntent& Intent);
@@ -342,7 +342,7 @@ private:
 		const FGameplayTag& StrategyTag,
 		const FGameplayTag& EventTag,
 		float Alpha
-	);
+	) const;
 
 	/** 镜像结算：冲刷镜像并广播结算事件 */
 	void EndMirror(bool bCompleted);

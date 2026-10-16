@@ -45,6 +45,8 @@
 
 USingularisInteractorComponent::USingularisInteractorComponent()
 {
+	SetIsReplicatedByDefault(false);
+
 	PrimaryComponentTick.bStartWithTickEnabled = true;
 	PrimaryComponentTick.bCanEverTick = true;
 
@@ -263,6 +265,7 @@ bool USingularisInteractorComponent::IsLocalPlayerInteractor()
 	return IsValid(PlayerController) && PlayerController->IsLocalController();
 }
 
+// ReSharper disable once CppPassValueParameterByConstReference
 void USingularisInteractorComponent::HandleTargetSessionEvent(FSingularisInteractionSessionEvent Event)
 {
 	// 1) 仅关注本交互者会话：目标随绑定隐式确定（绑定与解绑均随目标迁移），零信任丢弃失效目标
@@ -399,7 +402,7 @@ APawn* USingularisInteractorComponent::ResolveInstigator(AActor* Interactor)
 	return nullptr;
 }
 
-bool USingularisInteractorComponent::BeginMirror(USingularisInteractionSession* Archetype)
+bool USingularisInteractorComponent::BeginMirror(const USingularisInteractionSession* Archetype)
 {
 	// 1) 原型与驱动目标校验，派生镜像实例
 	if (!IsValid(Archetype) || !DriveTarget.IsValid())
@@ -459,7 +462,7 @@ void USingularisInteractorComponent::BroadcastInteractorSession(
 	const FGameplayTag& StrategyTag,
 	const FGameplayTag& EventTag,
 	const float Alpha
-)
+) const
 {
 	// 1) 组装会话事件（含身份上下文）
 	FSingularisInteractionSessionEvent Event;

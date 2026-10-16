@@ -46,6 +46,9 @@
 
 USingularisInteractionComponent::USingularisInteractionComponent()
 {
+	SetIsReplicatedByDefault(true);
+	bReplicateUsingRegisteredSubObjectList = true;
+
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.bCanEverTick = true;
 

@@ -46,6 +46,8 @@
 
 USingularisInteractionWidgetComponent::USingularisInteractionWidgetComponent()
 {
+	SetIsReplicatedByDefault(false);
+
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.bCanEverTick = false;
 
