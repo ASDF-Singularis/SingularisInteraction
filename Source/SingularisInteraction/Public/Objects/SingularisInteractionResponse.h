@@ -42,7 +42,7 @@
  * 会话事件的副作用执行单元：以单一入口 `DispatchSessionEvent` 消费统一事件流，
  * 事件经声明式分派落地（C++ 用 `SINGULARIS_RESPONSE_EVENT` 宏、蓝图用事件图内的会话事件节点，
  * 框架直接调用被声明的处理器函数），核心事件之外经标签开放扩展；事件处理不存在其他入口。
- * 处理器负载为量值与瞬态负荷双通道，不经框架公共事件结构传递，负载形态由发射会话自定。
+ * 处理器入参为会话上下文、量值与瞬态负荷三通道，不经框架公共事件结构传递，负载形态由发射会话自定。
  * 响应只消费会话语义，不感知事件如何产生；表现由框架事件流承担，响应永不自行组网。
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)
@@ -116,6 +116,20 @@ public:
 		meta = (DisplayName = "GetCurrentPayload")
 	)
 	FInstancedStruct GetCurrentPayload() const;
+
+	/**
+	 * 取分派帧的当前会话上下文。
+	 *
+	 * 仅在 `DispatchSessionEvent` 期间有效；给出本次事件的交互者、宿主、目标、管线标签与累计时长。
+	 *
+	 * @return 当前会话上下文；分派帧外为空上下文。
+	 */
+	UFUNCTION(
+		BlueprintPure,
+		Category = "引力奇点交互响应|API",
+		meta = (DisplayName = "GetCurrentContext")
+	)
+	FSingularisInteractionSessionContext GetCurrentContext() const;
 
 	/**
 	 * 判定当前会话事件是否命中订阅标签（层级匹配）。

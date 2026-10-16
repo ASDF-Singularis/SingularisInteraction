@@ -47,8 +47,9 @@
  * 登记只提交解析器，响应类与事件标签均在首次查找时求值：
  * 提交发生在静态初始化期，类（UObject 系统）与标签常量（跨编译单元）都尚未就绪。
  *
- * 处理器签名为 `void HandlerName(const FSingularisInteractionValue& Value, const FInstancedStruct& Payload)`，
- * 可定义于类体内或类体外、可先于本宏声明；类内任意访问级别均可。
+ * 处理器签名为
+ * `void HandlerName(const FSingularisInteractionSessionContext& Context, const FSingularisInteractionValue& Value, const FInstancedStruct& Payload)`，
+ * 与蓝图节点的三路输出引脚同序；可定义于类体内或类体外、可先于本宏声明；类内任意访问级别均可。
  * 分派由响应基类的 `DispatchSessionEvent` 驱动（沿类层级自派生向基类匹配，标签层级匹配）。
  *
  * @param EventTag    事件标签常量（如 `SingularisInteraction_Event_Complete`）

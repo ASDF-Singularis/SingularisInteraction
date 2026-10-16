@@ -70,6 +70,12 @@ FInstancedStruct USingularisInteractionResponse::GetCurrentPayload() const
 	return CurrentSessionEvent.Payload;
 }
 
+FSingularisInteractionSessionContext USingularisInteractionResponse::GetCurrentContext() const
+{
+	// 分派帧外返回空上下文：与量值、瞬态负荷同一约定
+	return CurrentSessionEvent.Context;
+}
+
 bool USingularisInteractionResponse::MatchesCurrentSessionEvent(const FGameplayTag& EventTag) const
 {
 	// 零信任：订阅标签可能未配置，无效则不命中
@@ -90,7 +96,7 @@ void USingularisInteractionResponse::DispatchDeclaredHandlers(const FSingularisI
 				if (!Entry.Handler || !Entry.EventTag.IsValid() || !Event.EventTag.MatchesTag(Entry.EventTag))
 					continue;
 
-				(this->*Entry.Handler)(Event.Value, Event.Payload);
+				(this->*Entry.Handler)(Event.Context, Event.Value, Event.Payload);
 			}
 		}
 

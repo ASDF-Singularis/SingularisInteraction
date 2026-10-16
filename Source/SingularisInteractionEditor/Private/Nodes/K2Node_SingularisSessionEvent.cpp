@@ -126,18 +126,29 @@ void UK2Node_SingularisSessionEvent::AllocateDefaultPins()
 {
 	Super::AllocateDefaultPins();
 
-	// 1) 隐藏委托输出引脚：框架按名直调本事件，节点只暴露「量值 + 瞬态负荷 + 配置 + 执行输出」
+	// 1) 隐藏委托输出引脚：框架按名直调本事件，节点只暴露「量值 + 瞬态负荷 + 会话上下文 + 配置 + 执行输出」
 	HideDelegateOutputPin();
 
-	// 2) 负载输出引脚：量值与瞬态负荷在分派帧内推送，展开期把引脚的连线改接分派帧读取，
-	//    因此不参与事件签名（事件函数保持无参，框架可直调）；结构可拆分，字段经拆分引脚取用
+	// 2) 负载输出引脚：会话上下文、量值与瞬态负荷在分派帧内推送，展开期把引脚的连线改接分派帧读取，
+	//    因此不参与事件签名（事件函数保持无参，框架可直调）；结构可拆分，字段经拆分引脚取用；
+	//    引脚名即面向作者的名字，引脚顺序与 C++ 处理器入参顺序一致
+	UEdGraphPin* const ContextPin = CreatePin(
+		EGPD_Output,
+		UEdGraphSchema_K2::PC_Struct,
+		FSingularisInteractionSessionContext::StaticStruct(),
+		GetContextPinName()
+	);
+	ContextPin->PinToolTip = LOCTEXT(
+		"ContextPinTip",
+		"本帧会话事件的会话上下文：交互者、实例者、宿主、目标、交互组件、管线标签与累计时长；可拆分取字段"
+	).ToString();
+
 	UEdGraphPin* const ValuePin = CreatePin(
 		EGPD_Output,
 		UEdGraphSchema_K2::PC_Struct,
 		FSingularisInteractionValue::StaticStruct(),
 		GetValuePinName()
 	);
-	ValuePin->PinFriendlyName = LOCTEXT("ValuePin", "量值");
 	ValuePin->PinToolTip = LOCTEXT(
 		"ValuePinTip",
 		"本帧会话事件的量值：中性量值载体（布尔 / 一维 / 二维 / 三维）；可拆分取字段"
@@ -149,7 +160,6 @@ void UK2Node_SingularisSessionEvent::AllocateDefaultPins()
 		FInstancedStruct::StaticStruct(),
 		GetPayloadPinName()
 	);
-	PayloadPin->PinFriendlyName = LOCTEXT("PayloadPin", "瞬态负荷");
 	PayloadPin->PinToolTip = LOCTEXT(
 		"PayloadPinTip",
 		"本帧会话事件的瞬态负荷：结构类型由发射会话自定，可空，仅在分派帧内有效"
@@ -163,7 +173,6 @@ void UK2Node_SingularisSessionEvent::AllocateDefaultPins()
 		FGameplayTag::StaticStruct(),
 		GetEventTagPinName()
 	);
-	EventTagPin->PinFriendlyName = LOCTEXT("EventTagPin", "事件标签");
 	EventTagPin->PinToolTip = FText::Format(
 		LOCTEXT(
 			"EventTagPinTip",
@@ -225,10 +234,10 @@ FText UK2Node_SingularisSessionEvent::GetNodeTitle(ENodeTitleType::Type TitleTyp
 {
 	// 配置未就绪时回退为通用标题
 	if (!SessionEventTag.IsValid())
-		return LOCTEXT("NodeTitle_None", "会话事件");
+		return LOCTEXT("NodeTitle_None", "Session Event");
 
 	return FText::Format(
-		LOCTEXT("NodeTitle", "会话事件 \n {0}"),
+		LOCTEXT("NodeTitle", "Session Event \n {0}"),
 		FText::FromString(SessionEventTag.ToString())
 	);
 }
@@ -237,14 +246,17 @@ FText UK2Node_SingularisSessionEvent::GetTooltipText() const
 {
 	return LOCTEXT(
 		"NodeTooltip",
-		"声明式会话事件处理器：无执行输入，直接从执行输出拉线写逻辑；量值与瞬态负荷输出引脚给出本帧负载（可拆分取字段，结构类型由发射会话自定），在节点上选择订阅标签（限于事件域，层级匹配）即可，框架按标签直调本事件函数，无需任何额外入口"
+		"声明式会话事件处理器：无执行输入，直接从执行输出拉线写逻辑；会话上下文、量值与瞬态负荷输出引脚给出本帧负载（可拆分取字段，瞬态负荷结构类型由发射会话自定），在节点上选择订阅标签（限于事件域，层级匹配）即可，框架按标签直调本事件函数，无需任何额外入口"
 	);
 }
 
 FText UK2Node_SingularisSessionEvent::GetKeywords() const
 {
 	// 检索词只影响菜单搜索命中，不参与任何语义
-	return LOCTEXT("NodeKeywords", "会话事件 事件负载 量值 瞬态负荷 声明式 分派 响应 交互 SessionEvent Interaction Event");
+	return LOCTEXT(
+		"NodeKeywords",
+		"会话事件 事件负载 量值 瞬态负荷 会话上下文 声明式 分派 响应 交互 SessionEvent Interaction Event Value Payload Context"
+	);
 }
 
 FLinearColor UK2Node_SingularisSessionEvent::GetNodeTitleColor() const { return FLinearColor(0.03f, 0.14f, 0.24f); }
@@ -332,8 +344,9 @@ void UK2Node_SingularisSessionEvent::ExpandNode(FKismetCompilerContext& Compiler
 	Super::ExpandNode(CompilerContext, SourceGraph);
 
 	// 负载不是事件签名参数：展开期把连线改接分派帧读取，读取结果即本帧推送的负载
-	// 1) 两路负载读取：量值与瞬态负荷各一路，各自对应响应侧的访问器
+	// 1) 三路负载读取（顺序与处理器入参一致）：会话上下文、量值与瞬态负荷各一路，各自对应响应侧的访问器
 	const TPair<FName, FName> PayloadReaders[] = {
+		{GetContextPinName(), GET_FUNCTION_NAME_CHECKED(USingularisInteractionResponse, GetCurrentContext)},
 		{GetValuePinName(), GET_FUNCTION_NAME_CHECKED(USingularisInteractionResponse, GetCurrentValue)},
 		{GetPayloadPinName(), GET_FUNCTION_NAME_CHECKED(USingularisInteractionResponse, GetCurrentPayload)}
 	};

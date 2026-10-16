@@ -38,6 +38,15 @@
 class USingularisInteractionResponse;
 
 /**
+ * 声明式处理器成员函数指针：入参依次为会话上下文、量值与瞬态负荷。
+ */
+using FSingularisInteractionHandlerPtr = void (USingularisInteractionResponse::*)(
+	const FSingularisInteractionSessionContext& Context,
+	const FSingularisInteractionValue& Value,
+	const FInstancedStruct& Payload
+);
+
+/**
  * 引力奇点交互事件处理器条目。
  */
 struct FSingularisInteractionEventHandler
@@ -45,11 +54,8 @@ struct FSingularisInteractionEventHandler
 	/** 订阅的事件标签（解析后固化，层级匹配） */
 	FGameplayTag EventTag{};
 
-	/** 处理器成员函数指针（入参：量值、瞬态负荷） */
-	void (USingularisInteractionResponse::*Handler)(
-		const FSingularisInteractionValue&,
-		const FInstancedStruct&
-	) = nullptr;
+	/** 处理器成员函数指针 */
+	FSingularisInteractionHandlerPtr Handler = nullptr;
 };
 
 /**
@@ -64,13 +70,11 @@ struct FSingularisInteractionHandlerRegistration
 	UClass* (*ResponseClassResolver)() = nullptr;
 
 	/** 订阅的事件标签解析器 */
+	/** 事件标签解析器 */
 	FGameplayTag (*EventTagResolver)() = nullptr;
 
-	/** 处理器成员函数指针（入参：量值、瞬态负荷） */
-	void (USingularisInteractionResponse::*Handler)(
-		const FSingularisInteractionValue&,
-		const FInstancedStruct&
-	) = nullptr;
+	/** 处理器成员函数指针 */
+	FSingularisInteractionHandlerPtr Handler = nullptr;
 };
 
 /**
@@ -101,7 +105,7 @@ public:
 	void RegisterHandler(
 		UClass* (*ResponseClassResolver)(),
 		FGameplayTag (*EventTagResolver)(),
-		void (USingularisInteractionResponse::*Handler)(const FSingularisInteractionValue&, const FInstancedStruct&)
+		FSingularisInteractionHandlerPtr Handler
 	);
 
 	/**
