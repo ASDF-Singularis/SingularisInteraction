@@ -251,21 +251,37 @@ public:
 	)
 	bool Hovered() const { return bIsHovered; }
 
-	/** 设置启用状态。状态未变化时幂等返回，变化后广播事件并驱动行为；禁用时取消全部活跃会话 */
+	/** 悬浮交互。已悬浮时静默忽略，状态变化后广播事件并驱动行为 */
 	UFUNCTION(
 		BlueprintCallable,
 		Category = "引力奇点交互组件|API",
-		meta = (DisplayName = "SetEnabled")
+		meta = (DisplayName = "悬浮")
 	)
-	void SetEnabled(bool IsEnabled);
+	void Hover();
 
-	/** 设置悬浮状态。状态未变化时幂等返回，变化后广播事件并驱动行为 */
+	/** 取消悬浮。未悬浮时静默忽略，状态变化后广播事件并驱动行为 */
 	UFUNCTION(
 		BlueprintCallable,
 		Category = "引力奇点交互组件|API",
-		meta = (DisplayName = "SetHovered")
+		meta = (DisplayName = "取消悬浮")
 	)
-	void SetHovered(bool IsHovered);
+	void Unhover();
+
+	/** 开启交互。已开启时静默忽略，状态变化后广播事件并驱动行为 */
+	UFUNCTION(
+		BlueprintCallable,
+		Category = "引力奇点交互组件|API",
+		meta = (DisplayName = "开启")
+	)
+	void Enable();
+
+	/** 关闭交互。已关闭时静默忽略，状态变化后广播事件、取消全部活跃会话并驱动行为 */
+	UFUNCTION(
+		BlueprintCallable,
+		Category = "引力奇点交互组件|API",
+		meta = (DisplayName = "关闭")
+	)
+	void Disable();
 
 	/**
 	 * 查询指定管线标签命中的首个管线的会话原型。
@@ -340,6 +356,38 @@ private:
 
 	/** 依据会话表空非空切换组件 Tick */
 	void RefreshSessionTick();
+
+	/**
+	 * 设置启用状态并应用副作用。
+	 *
+	 * 幂等。先快照旧值，再赋值新值，最后调用 ApplyEnabled。
+	 *
+	 * @param bEnable 新的启用状态。
+	 */
+	void SetEnabled(bool bEnable);
+
+	/**
+	 * 应用启用状态变化到事件广播与行为驱动。
+	 *
+	 * @param bOldEnable 变化前的旧启用状态，当前实现未使用。
+	 */
+	void ApplyEnabled(bool bOldEnable);
+
+	/**
+	 * 设置悬浮状态并应用副作用。
+	 *
+	 * 幂等。先快照旧值，再赋值新值，最后调用 ApplyHovered。
+	 *
+	 * @param bHover 新的悬浮状态。
+	 */
+	void SetHovered(bool bHover);
+
+	/**
+	 * 应用悬浮状态变化到事件广播与行为驱动。
+	 *
+	 * @param bOldHover 变化前的旧悬浮状态，当前实现未使用。
+	 */
+	void ApplyHovered(bool bOldHover);
 
 	/** 按会话实例反查所属会话的发起主体 Actor（会话表键） */
 	TWeakObjectPtr<AActor> FindSessionInteractor(const USingularisInteractionSession* Session) const;

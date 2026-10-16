@@ -56,6 +56,7 @@ USingularisInteractionComponent::USingularisInteractionComponent()
 }
 
 #if WITH_EDITOR
+
 EDataValidationResult USingularisInteractionComponent::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
@@ -101,6 +102,7 @@ EDataValidationResult USingularisInteractionComponent::IsDataValid(FDataValidati
 
 	return Result;
 }
+
 #endif
 
 void USingularisInteractionComponent::BeginPlay()
@@ -197,89 +199,32 @@ void USingularisInteractionComponent::HostCancelSession_Implementation(
 	SettleSession(FindSessionInteractor(Session), false, Payload);
 }
 
-void USingularisInteractionComponent::SetEnabled(const bool IsEnabled)
+void USingularisInteractionComponent::Hover()
 {
-	// 1) 幂等检查，状态未变更时直接返回
-	if (bIsEnabled == IsEnabled)
-		return;
-	bIsEnabled = IsEnabled;
+	if (bIsHovered) return;
 
-	// 2) 禁用时取消全部活跃会话（副本结算，避免迭代中变更）
-	if (!IsEnabled)
-	{
-		TArray<TWeakObjectPtr<AActor>> Interactors;
-		ActiveSessions.GetKeys(Interactors);
-		for (const TWeakObjectPtr<AActor>& Interactor : Interactors)
-			SettleSession(Interactor, false, FInstancedStruct());
-	}
-
-	// 3) 广播状态变更事件
-	if (IsEnabled)
-		OnInteractionEnableEvent.Broadcast();
-	else
-		OnInteractionDisableEvent.Broadcast();
-
-	// 4) 驱动行为执行副作用
-	FSingularisInteractionBehaviorContext Context;
-	Context.InteractionActor = GetOwner();
-	Context.InteractionComponent = this;
-
-	for (const auto& [Name, Description, Behavior] : InteractionBehaviors)
-	{
-		if (!IsValid(Behavior))
-			continue;
-
-		if (IsEnabled)
-			Behavior->Enabled(Context);
-		else
-			Behavior->Disabled(Context);
-	}
-
-	UE_LOG(
-		LogSingularisInteraction,
-		Display,
-		TEXT("[%s] SetEnabled：交互状态 → %s"),
-		*GetNameSafe(GetOwner()),
-		IsEnabled ? TEXT("启用") : TEXT("禁用")
-	);
+	SetHovered(true);
 }
 
-void USingularisInteractionComponent::SetHovered(const bool IsHovered)
+void USingularisInteractionComponent::Unhover()
 {
-	// 1) 幂等检查，状态未变更时直接返回
-	if (bIsHovered == IsHovered)
-		return;
-	bIsHovered = IsHovered;
+	if (!bIsHovered) return;
 
-	// 2) 广播状态变更事件
-	if (IsHovered)
-		OnInteractionHoverEvent.Broadcast();
-	else
-		OnInteractionUnhoverEvent.Broadcast();
+	SetHovered(false);
+}
 
-	// 3) 驱动行为执行副作用
-	FSingularisInteractionBehaviorContext Context;
-	Context.InteractionActor = GetOwner();
-	Context.InteractionComponent = this;
+void USingularisInteractionComponent::Enable()
+{
+	if (bIsEnabled) return;
 
-	for (const auto& [Name, Description, Behavior] : InteractionBehaviors)
-	{
-		if (!IsValid(Behavior))
-			continue;
+	SetEnabled(true);
+}
 
-		if (IsHovered)
-			Behavior->Hovered(Context);
-		else
-			Behavior->Unhovered(Context);
-	}
+void USingularisInteractionComponent::Disable()
+{
+	if (!bIsEnabled) return;
 
-	UE_LOG(
-		LogSingularisInteraction,
-		Display,
-		TEXT("[%s] SetHovered：悬浮状态 → %s"),
-		*GetNameSafe(GetOwner()),
-		IsHovered ? TEXT("悬浮") : TEXT("未悬浮")
-	);
+	SetEnabled(false);
 }
 
 USingularisInteractionSession* USingularisInteractionComponent::GetInteractionSession(
@@ -590,6 +535,107 @@ FSingularisInteractionSessionContext USingularisInteractionComponent::BuildSessi
 }
 
 void USingularisInteractionComponent::RefreshSessionTick() { SetComponentTickEnabled(!ActiveSessions.IsEmpty()); }
+
+void USingularisInteractionComponent::SetEnabled(const bool bEnable)
+{
+	// 1) 幂等性检查，若状态未变更则直接返回
+	if (bIsEnabled == bEnable) return;
+
+	// 2) 捕获旧状态后写入新状态
+	const bool bOldEnable = bIsEnabled;
+	bIsEnabled = bEnable;
+
+	// 3) 响应式编程：应用副作用
+	ApplyEnabled(bOldEnable);
+}
+
+void USingularisInteractionComponent::ApplyEnabled(const bool bOldEnable)
+{
+	// 1) 禁用时取消全部活跃会话（副本结算，避免迭代中变更）
+	if (!bIsEnabled)
+	{
+		TArray<TWeakObjectPtr<AActor>> Interactors;
+		ActiveSessions.GetKeys(Interactors);
+		for (const TWeakObjectPtr<AActor>& Interactor : Interactors)
+			SettleSession(Interactor, false, FInstancedStruct());
+	}
+
+	// 2) 广播状态变更事件
+	if (bIsEnabled)
+		OnInteractionEnableEvent.Broadcast();
+	else
+		OnInteractionDisableEvent.Broadcast();
+
+	// 3) 驱动行为执行副作用
+	FSingularisInteractionBehaviorContext Context;
+	Context.InteractionActor = GetOwner();
+	Context.InteractionComponent = this;
+
+	for (const auto& [Name, Description, Behavior] : InteractionBehaviors)
+	{
+		if (!IsValid(Behavior))
+			continue;
+
+		if (bIsEnabled)
+			Behavior->Enabled(Context);
+		else
+			Behavior->Disabled(Context);
+	}
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] ApplyEnabled：交互状态 → %s"),
+		*GetNameSafe(GetOwner()),
+		bIsEnabled ? TEXT("启用") : TEXT("禁用")
+	);
+}
+
+void USingularisInteractionComponent::SetHovered(const bool bHover)
+{
+	// 1) 幂等性检查，若状态未变更则直接返回
+	if (bIsHovered == bHover) return;
+
+	// 2) 捕获旧状态后写入新状态
+	const bool bOldHover = bIsHovered;
+	bIsHovered = bHover;
+
+	// 3) 响应式编程：应用副作用
+	ApplyHovered(bOldHover);
+}
+
+void USingularisInteractionComponent::ApplyHovered(const bool bOldHover)
+{
+	// 1) 广播状态变更事件
+	if (bIsHovered)
+		OnInteractionHoverEvent.Broadcast();
+	else
+		OnInteractionUnhoverEvent.Broadcast();
+
+	// 2) 驱动行为执行副作用
+	FSingularisInteractionBehaviorContext Context;
+	Context.InteractionActor = GetOwner();
+	Context.InteractionComponent = this;
+
+	for (const auto& [Name, Description, Behavior] : InteractionBehaviors)
+	{
+		if (!IsValid(Behavior))
+			continue;
+
+		if (bIsHovered)
+			Behavior->Hovered(Context);
+		else
+			Behavior->Unhovered(Context);
+	}
+
+	UE_LOG(
+		LogSingularisInteraction,
+		Display,
+		TEXT("[%s] ApplyHovered：悬浮状态 → %s"),
+		*GetNameSafe(GetOwner()),
+		bIsHovered ? TEXT("悬浮") : TEXT("未悬浮")
+	);
+}
 
 TWeakObjectPtr<AActor> USingularisInteractionComponent::FindSessionInteractor(
 	const USingularisInteractionSession* Session

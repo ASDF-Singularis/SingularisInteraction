@@ -384,7 +384,7 @@ void USingularisInteractorComponent::ApplyQueryerResult(
 		);
 
 		if (IsLocalPlayerInteractor())
-			OldTarget->SetHovered(false);
+			OldTarget->Unhover();
 	}
 
 	// 2) 新目标：绑定会话事件并激活悬浮
@@ -396,7 +396,7 @@ void USingularisInteractorComponent::ApplyQueryerResult(
 		);
 
 		if (IsLocalPlayerInteractor())
-			NewTarget->SetHovered(true);
+			NewTarget->Hover();
 	}
 
 	// 3) 通知驱动器刷新输入装配
