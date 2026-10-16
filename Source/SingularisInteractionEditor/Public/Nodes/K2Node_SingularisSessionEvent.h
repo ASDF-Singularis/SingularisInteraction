@@ -41,10 +41,11 @@
  * 会话事件节点（声明式分派）。
  *
  * 继承引擎事件基类，拖入交互响应蓝图的事件图即为真实入口：与引擎事件节点一致没有执行输入，
- * 从执行输出拉线写处理器逻辑，节点上选择订阅标签（层级匹配，订阅父标签即覆盖全部后代）。
+ * 从执行输出拉线写处理器逻辑，负载输出引脚给出本次会话事件，节点上选择订阅标签
+ * （层级匹配，订阅父标签即覆盖全部后代）。
  * 编译器为本节点生成独立 stub UFunction（函数名由订阅标签推导，跳转 ubergraph），编译期由 hook
  * 把「标签 → 事件函数名」烘焙进响应类 CDO，运行时框架按名直调，无需任何额外入口。
- * 事件负载在分派帧内经 `GetCurrentSessionEvent` 读取（本节点不得携带参数）。
+ * 事件负载在分派帧内推送，负载引脚在节点展开期改写为分派帧读取，本节点不携带事件签名参数。
  *
  * 订阅标签的取值限于事件域（`Singularis.Interaction.Event`）子树，领域事件经其子标签开放扩展；
  * 新建节点默认订阅事件域达成，配置引脚不参与事件签名。
@@ -65,6 +66,9 @@ public:
 	/** 订阅标签配置引脚名（写入、读回、校验共用，避免魔法字符串漂移） */
 	static FName GetEventTagPinName() { return FName(TEXT("EventTag")); }
 
+	/** 负载输出引脚名（会话事件；展开期改写为分派帧读取） */
+	static FName GetPayloadPinName() { return FName(TEXT("SessionEvent")); }
+
 	/**
 	 * 读取订阅标签。
 	 *
@@ -83,7 +87,7 @@ public:
 	/** 加载后隐藏基类委托输出引脚，使旧资产与新建节点形态一致 */
 	virtual void PostLoad() override;
 
-	/** 分配配置引脚与执行输出引脚：委托输出引脚隐藏，配置引脚镜像订阅标签 */
+	/** 分配引脚：委托输出引脚隐藏，负载输出引脚给出会话事件，配置引脚镜像订阅标签 */
 	virtual void AllocateDefaultPins() override;
 
 	/** 新放置节点即固化事件函数名（stub 函数名必须非空） */
@@ -118,6 +122,12 @@ public:
 
 	/** 编译期校验：宿主蓝图、订阅标签的配置与事件域约束、无参约束 */
 	virtual void ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const override;
+
+	/** 事件签名比对：本节点签名恒为空，负载与订阅标签引脚不计入签名 */
+	virtual bool IsFunctionEntryCompatible(const UK2Node_FunctionEntry* EntryNode) const override;
+
+	/** 节点展开：负载引脚改接分派帧读取，事件函数保持无参直调 */
+	virtual void ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
 
 	/** 注册到蓝图右键菜单 */
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
