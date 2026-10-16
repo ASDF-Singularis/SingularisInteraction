@@ -71,9 +71,9 @@ struct SINGULARISINTERACTION_API FSingularisInteractionSessionContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<USingularisInteractionComponent> InteractionComponent = nullptr;
 
-	/** 会话对应的响应标签 */
+	/** 会话对应的管线标签 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTag ResponseTag{};
+	FGameplayTag PipelineTag{};
 
 	/** 会话累计时长（秒） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -118,8 +118,8 @@ struct FSingularisInteractionSessionRecord
 	/** 交互者 */
 	TWeakObjectPtr<AActor> Interactor = nullptr;
 
-	/** 会话对应的响应标签 */
-	FGameplayTag ResponseTag{};
+	/** 会话对应的管线标签 */
+	FGameplayTag PipelineTag{};
 
 	/** 会话专属会话实例 */
 	TObjectPtr<USingularisInteractionSession> Session = nullptr;

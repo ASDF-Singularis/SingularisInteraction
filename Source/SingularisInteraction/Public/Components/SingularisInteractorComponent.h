@@ -149,8 +149,8 @@ private:
 	/** 进行中驱动的目标 */
 	TWeakObjectPtr<USingularisInteractionComponent> DriveTarget = nullptr;
 
-	/** 进行中驱动的响应标签 */
-	FGameplayTag DriveResponseTag{};
+	/** 进行中驱动的管线标签 */
+	FGameplayTag DrivePipelineTag{};
 
 	/** 镜像会话实例（本地玩家就地派生并推进的会话） */
 	TObjectPtr<USingularisInteractionSession> MirrorSession = nullptr;
@@ -231,7 +231,7 @@ public:
 	 * 单驱动卫语句保证同一时刻仅驱动一个目标会话。
 	 *
 	 * @param Target 目标组件。
-	 * @param ResponseTag 会话对应的响应标签。
+	 * @param PipelineTag 会话对应的管线标签。
 	 * @param IntentTag 意图标签（Singularis.Interaction.Intent.*）。
 	 * @param Value 意图量值（连续语义：布尔 / 一维 / 二维 / 三维）。
 	 * @return 受理时返回 true。
@@ -243,7 +243,7 @@ public:
 	)
 	bool SubmitInteractionIntent(
 		USingularisInteractionComponent* Target,
-		FGameplayTag ResponseTag,
+		FGameplayTag PipelineTag,
 		FGameplayTag IntentTag,
 		const FSingularisInteractionValue& Value
 	);
@@ -252,7 +252,7 @@ public:
 	 * 主张交互（等价提交 Press 意图）。
 	 *
 	 * @param Target 目标组件。
-	 * @param ResponseTag 会话对应的响应标签。
+	 * @param PipelineTag 会话对应的管线标签。
 	 * @return 受理时返回 true。
 	 */
 	UFUNCTION(
@@ -260,13 +260,13 @@ public:
 		Category = "引力奇点交互者组件|API",
 		meta = (DisplayName = "BeginInteraction")
 	)
-	bool BeginInteraction(USingularisInteractionComponent* Target, FGameplayTag ResponseTag);
+	bool BeginInteraction(USingularisInteractionComponent* Target, FGameplayTag PipelineTag);
 
 	/**
 	 * 撤回交互（等价提交 Release 意图）。
 	 *
 	 * @param Target 目标组件。
-	 * @param ResponseTag 会话对应的响应标签。
+	 * @param PipelineTag 会话对应的管线标签。
 	 * @return 受理时返回 true。
 	 */
 	UFUNCTION(
@@ -274,7 +274,7 @@ public:
 		Category = "引力奇点交互者组件|API",
 		meta = (DisplayName = "EndInteraction")
 	)
-	bool EndInteraction(USingularisInteractionComponent* Target, FGameplayTag ResponseTag);
+	bool EndInteraction(USingularisInteractionComponent* Target, FGameplayTag PipelineTag);
 
 	/**
 	 * 宿主玩家控制器（惰性解析并缓存）。
@@ -339,7 +339,7 @@ private:
 	/** 广播本地会话流 */
 	void BroadcastInteractorSession(
 		USingularisInteractionComponent* Target,
-		const FGameplayTag& ResponseTag,
+		const FGameplayTag& PipelineTag,
 		const FGameplayTag& EventTag,
 		float Alpha
 	) const;

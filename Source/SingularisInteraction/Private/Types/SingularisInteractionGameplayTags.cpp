@@ -55,9 +55,9 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(
 	"Singularis.Interaction.Event.Cancel",
 	"事件：会话中止，含准入拒绝反馈"
 )
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Response, "Singularis.Interaction.Response", "响应域根标签")
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(SingularisInteraction_Pipeline, "Singularis.Interaction.Pipeline", "管线域根标签")
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(
-	SingularisInteraction_Response_Default,
-	"Singularis.Interaction.Response.Default",
-	"默认响应标签"
+	SingularisInteraction_Pipeline_Default,
+	"Singularis.Interaction.Pipeline.Default",
+	"默认管线标签"
 )

@@ -72,7 +72,7 @@ EBTNodeResult::Type UBTTask_SingularisBeginInteraction::ExecuteTask(
 	);
 
 	// 3) 提交主张意图（与玩家同一入口、同一规则）
-	if (!Interactor->BeginInteraction(Target, ResponseTag))
+	if (!Interactor->BeginInteraction(Target, PipelineTag))
 	{
 		Interactor->OnInteractorSessionEvent.RemoveDynamic(
 			this,
@@ -108,7 +108,7 @@ void UBTTask_SingularisBeginInteraction::TickTask(
 	ElapsedSeconds += DeltaSeconds;
 	if (ElapsedSeconds >= TimeoutSeconds)
 	{
-		ObservedInteractor->EndInteraction(ActiveTarget.Get(), ResponseTag);
+		ObservedInteractor->EndInteraction(ActiveTarget.Get(), PipelineTag);
 		FinishLatent(OwnerComp, false);
 	}
 }
@@ -121,7 +121,7 @@ EBTNodeResult::Type UBTTask_SingularisBeginInteraction::AbortTask(
 	// 1) 撤回交互并解绑观察
 	if (ObservedInteractor.IsValid())
 	{
-		ObservedInteractor->EndInteraction(ActiveTarget.Get(), ResponseTag);
+		ObservedInteractor->EndInteraction(ActiveTarget.Get(), PipelineTag);
 		ObservedInteractor->OnInteractorSessionEvent.RemoveDynamic(
 			this,
 			&UBTTask_SingularisBeginInteraction::HandleInteractorSessionEvent
@@ -138,7 +138,7 @@ EBTNodeResult::Type UBTTask_SingularisBeginInteraction::AbortTask(
 FString UBTTask_SingularisBeginInteraction::GetStaticDescription() const
 {
 	// 1) 展示标签与目标键，便于行为树审阅
-	return FString::Printf(TEXT("响应标签: %s\n目标键: %s"), *ResponseTag.ToString(), *TargetKey.SelectedKeyName.ToString());
+	return FString::Printf(TEXT("管线标签: %s\n目标键: %s"), *PipelineTag.ToString(), *TargetKey.SelectedKeyName.ToString());
 }
 
 void UBTTask_SingularisBeginInteraction::HandleInteractorSessionEvent(
@@ -146,10 +146,10 @@ void UBTTask_SingularisBeginInteraction::HandleInteractorSessionEvent(
 	FSingularisInteractionSessionEvent Event
 )
 {
-	// 1) 仅关注本任务会话（交互者与响应标签一致）
+	// 1) 仅关注本任务会话（交互者与管线标签一致）
 	if (!ObservedInteractor.IsValid() || Event.Context.Interactor != ObservedInteractor->GetOwner())
 		return;
-	if (Event.Context.ResponseTag != ResponseTag)
+	if (Event.Context.PipelineTag != PipelineTag)
 		return;
 
 	// 2) 结算判据：达成为成功、中止为失败

@@ -59,16 +59,16 @@ class SINGULARISINTERACTION_API UBTTask_SingularisEmitValue : public UBTTaskNode
 public:
 	UBTTask_SingularisEmitValue();
 
-	/** 会话对应的响应标签 */
+	/** 会话对应的管线标签 */
 	UPROPERTY(
 		EditAnywhere,
 		Category = "引力奇点交互",
 		meta = (
-			Categories = "Singularis.Interaction.Response",
+			Categories = "Singularis.Interaction.Pipeline",
 			ForceSelection = "true"
 		)
 	)
-	FGameplayTag ResponseTag{};
+	FGameplayTag PipelineTag{};
 
 	/** 目标黑板键（交互组件或 Actor） */
 	UPROPERTY(EditAnywhere, Category = "引力奇点交互")

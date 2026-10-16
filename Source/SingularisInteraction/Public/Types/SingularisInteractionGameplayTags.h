@@ -66,8 +66,8 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event_Complete);
 /** 事件：会话中止（离散事件；含准入拒绝反馈） */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Event_Cancel);
 
-/** 响应域根标签 */
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Response);
+/** 管线域根标签 */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Pipeline);
 
-/** 默认响应标签，绑定默认输入动作 */
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Response_Default);
+/** 默认管线标签，绑定默认输入动作 */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SingularisInteraction_Pipeline_Default);

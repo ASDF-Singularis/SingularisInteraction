@@ -40,7 +40,7 @@ class UInputAction;
 /**
  * 引力奇点交互输入绑定。
  *
- * 增强输入驱动器的配置单元：把输入动作映射到响应标签，
+ * 增强输入驱动器的配置单元：把输入动作映射到管线标签，
  * 可选携带连续值（Triggered → Intent.Value）。
  */
 USTRUCT(BlueprintType)
@@ -52,16 +52,16 @@ struct SINGULARISINTERACTION_API FSingularisInteractionInputBinding
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UInputAction> InputAction = nullptr;
 
-	/** 动作映射的响应标签 */
+	/** 动作映射的管线标签 */
 	UPROPERTY(
 		EditAnywhere,
 		BlueprintReadWrite,
 		meta = (
-			Categories = "Singularis.Interaction.Response",
+			Categories = "Singularis.Interaction.Pipeline",
 			ForceSelection = "true"
 		)
 	)
-	FGameplayTag ResponseTag{};
+	FGameplayTag PipelineTag{};
 
 	/** 是否携带连续值（Triggered → Intent.Value，轴交互开启） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

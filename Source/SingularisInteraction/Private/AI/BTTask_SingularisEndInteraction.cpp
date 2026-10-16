@@ -73,11 +73,11 @@ EBTNodeResult::Type UBTTask_SingularisEndInteraction::ExecuteTask(
 		return EBTNodeResult::Failed;
 
 	// 3) 提交撤回意图
-	return Interactor->EndInteraction(Target, ResponseTag) ? EBTNodeResult::Succeeded : EBTNodeResult::Failed;
+	return Interactor->EndInteraction(Target, PipelineTag) ? EBTNodeResult::Succeeded : EBTNodeResult::Failed;
 }
 
 FString UBTTask_SingularisEndInteraction::GetStaticDescription() const
 {
 	// 1) 展示标签与目标键，便于行为树审阅
-	return FString::Printf(TEXT("响应标签: %s\n目标键: %s"), *ResponseTag.ToString(), *TargetKey.SelectedKeyName.ToString());
+	return FString::Printf(TEXT("管线标签: %s\n目标键: %s"), *PipelineTag.ToString(), *TargetKey.SelectedKeyName.ToString());
 }

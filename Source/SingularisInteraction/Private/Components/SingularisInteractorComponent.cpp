@@ -105,7 +105,7 @@ void USingularisInteractorComponent::HostEmitSessionEvent_Implementation(
 		return;
 
 	// 2) 连续量与领域事件：本地会话流全量广播
-	BroadcastInteractorSession(DriveTarget.Get(), DriveResponseTag, EventTag, FMath::Clamp(Alpha, 0.0f, 1.0f));
+	BroadcastInteractorSession(DriveTarget.Get(), DrivePipelineTag, EventTag, FMath::Clamp(Alpha, 0.0f, 1.0f));
 }
 
 void USingularisInteractorComponent::HostCompleteSession_Implementation(USingularisInteractionSession* Session)
@@ -138,13 +138,13 @@ void USingularisInteractorComponent::SetTarget(USingularisInteractionComponent* 
 
 bool USingularisInteractorComponent::SubmitInteractionIntent(
 	USingularisInteractionComponent* Target,
-	const FGameplayTag ResponseTag,
+	const FGameplayTag PipelineTag,
 	const FGameplayTag IntentTag,
 	const FSingularisInteractionValue& Value
 )
 {
 	// 1) 零信任校验
-	if (!IsValid(Target) || !ResponseTag.IsValid() || !IntentTag.IsValid())
+	if (!IsValid(Target) || !PipelineTag.IsValid() || !IntentTag.IsValid())
 		return false;
 
 	AActor* InteractorActor = GetOwner();
@@ -152,7 +152,7 @@ bool USingularisInteractorComponent::SubmitInteractionIntent(
 		return false;
 
 	// 2) 单驱动卫语句：进行中的驱动仅接受同目标同标签意图
-	if (bDriveActive && (DriveTarget.Get() != Target || DriveResponseTag != ResponseTag))
+	if (bDriveActive && (DriveTarget.Get() != Target || DrivePipelineTag != PipelineTag))
 		return false;
 
 	// 3) 组装意图
@@ -167,9 +167,9 @@ bool USingularisInteractorComponent::SubmitInteractionIntent(
 		{
 			bDriveActive = true;
 			DriveTarget = Target;
-			DriveResponseTag = ResponseTag;
+			DrivePipelineTag = PipelineTag;
 
-			USingularisInteractionSession* SessionArchetype = Target->GetInteractionSession(ResponseTag);
+			USingularisInteractionSession* SessionArchetype = Target->GetInteractionSession(PipelineTag);
 
 			// 4.1) 无会话原型：本地无会话流可产出，即刻冲刷驱动
 			if (!IsValid(SessionArchetype))
@@ -177,16 +177,16 @@ bool USingularisInteractorComponent::SubmitInteractionIntent(
 				UE_LOG(
 					LogSingularisInteraction,
 					Warning,
-					TEXT("[%s] SubmitInteractionIntent：响应标签 %s 无会话原型，镜像未派生"),
+					TEXT("[%s] SubmitInteractionIntent：管线标签 %s 无会话原型，镜像未派生"),
 					*GetNameSafe(InteractorActor),
-					*ResponseTag.ToString()
+					*PipelineTag.ToString()
 				);
 				FlushDrive();
 			}
 			else
 			{
 				// 4.2) 广播 Begin 并派生镜像会话
-				BroadcastInteractorSession(Target, ResponseTag, SingularisInteraction_Event_Begin, 0.0f);
+				BroadcastInteractorSession(Target, PipelineTag, SingularisInteraction_Event_Begin, 0.0f);
 				BeginMirror(SessionArchetype);
 			}
 		}
@@ -198,14 +198,14 @@ bool USingularisInteractorComponent::SubmitInteractionIntent(
 		// 5) 其余交互者（AI / 脚本）：登记驱动状态供单驱动卫语句与结算清理
 		bDriveActive = true;
 		DriveTarget = Target;
-		DriveResponseTag = ResponseTag;
+		DrivePipelineTag = PipelineTag;
 	}
 
 	// 6) 经世界子系统单一入口提交
 	if (UWorld* World = GetWorld())
 	{
 		if (USingularisInteractionSubsystem* Subsystem = World->GetSubsystem<USingularisInteractionSubsystem>())
-			Subsystem->SubmitInteractionIntent(InteractorActor, Target, ResponseTag, Intent);
+			Subsystem->SubmitInteractionIntent(InteractorActor, Target, PipelineTag, Intent);
 	}
 
 	return true;
@@ -213,12 +213,12 @@ bool USingularisInteractorComponent::SubmitInteractionIntent(
 
 bool USingularisInteractorComponent::BeginInteraction(
 	USingularisInteractionComponent* Target,
-	const FGameplayTag ResponseTag
+	const FGameplayTag PipelineTag
 )
 {
 	return SubmitInteractionIntent(
 		Target,
-		ResponseTag,
+		PipelineTag,
 		SingularisInteraction_Intent_Press,
 		FSingularisInteractionValue()
 	);
@@ -226,12 +226,12 @@ bool USingularisInteractorComponent::BeginInteraction(
 
 bool USingularisInteractorComponent::EndInteraction(
 	USingularisInteractionComponent* Target,
-	const FGameplayTag ResponseTag
+	const FGameplayTag PipelineTag
 )
 {
 	return SubmitInteractionIntent(
 		Target,
-		ResponseTag,
+		PipelineTag,
 		SingularisInteraction_Intent_Release,
 		FSingularisInteractionValue()
 	);
@@ -356,7 +356,7 @@ void USingularisInteractorComponent::ApplyQueryerResult(
 		{
 			SubmitInteractionIntent(
 				OldTarget,
-				DriveResponseTag,
+				DrivePipelineTag,
 				SingularisInteraction_Intent_Release,
 				FSingularisInteractionValue()
 			);
@@ -425,7 +425,7 @@ bool USingularisInteractorComponent::BeginMirror(const USingularisInteractionSes
 	MirrorContext.Avatar = DriveTarget->GetOwner();
 	MirrorContext.Target = DriveTarget->GetOwner();
 	MirrorContext.InteractionComponent = DriveTarget.Get();
-	MirrorContext.ResponseTag = DriveResponseTag;
+	MirrorContext.PipelineTag = DrivePipelineTag;
 	MirrorContext.Elapsed = 0.0f;
 
 	// 3) 启动镜像会话（瞬时会话在此完成并结算）
@@ -459,7 +459,7 @@ void USingularisInteractorComponent::MirrorTick(const float DeltaTime)
 
 void USingularisInteractorComponent::BroadcastInteractorSession(
 	USingularisInteractionComponent* Target,
-	const FGameplayTag& ResponseTag,
+	const FGameplayTag& PipelineTag,
 	const FGameplayTag& EventTag,
 	const float Alpha
 ) const
@@ -473,7 +473,7 @@ void USingularisInteractorComponent::BroadcastInteractorSession(
 	Event.Context.Avatar = IsValid(Target) ? Target->GetOwner() : nullptr;
 	Event.Context.Target = Event.Context.Avatar;
 	Event.Context.InteractionComponent = Target;
-	Event.Context.ResponseTag = ResponseTag;
+	Event.Context.PipelineTag = PipelineTag;
 
 	// 2) 广播本地流
 	OnInteractorSessionEvent.Broadcast(Target, Event);
@@ -487,13 +487,13 @@ void USingularisInteractorComponent::EndMirror(const bool bCompleted)
 
 	// 2) 捕获身份后冲刷镜像状态
 	USingularisInteractionComponent* Target = DriveTarget.Get();
-	const FGameplayTag ResponseTag = DriveResponseTag;
+	const FGameplayTag PipelineTag = DrivePipelineTag;
 	FlushDrive();
 
 	// 3) 广播结算
 	BroadcastInteractorSession(
 		Target,
-		ResponseTag,
+		PipelineTag,
 		bCompleted ? SingularisInteraction_Event_Complete : SingularisInteraction_Event_Cancel,
 		bCompleted ? 1.0f : 0.0f
 	);
@@ -507,5 +507,5 @@ void USingularisInteractorComponent::FlushDrive()
 
 	bDriveActive = false;
 	DriveTarget = nullptr;
-	DriveResponseTag = FGameplayTag{};
+	DrivePipelineTag = FGameplayTag{};
 }

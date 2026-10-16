@@ -34,6 +34,10 @@
 #include <GameplayTagContainer.h>
 #include <Components/ActorComponent.h>
 
+#if WITH_EDITOR
+#include <Misc/DataValidation.h>
+#endif
+
 #include "Interfaces/SingularisInteractionSessionHost.h"
 #include "Types/SingularisInteractionComponentType.h"
 #include "Types/SingularisInteractionIntentType.h"
@@ -97,18 +101,14 @@ public:
 	)
 	TArray<FComponentReference> TargetComponentReferences{};
 
-	/** 交互管线映射，键为响应标签，值为会话原型与有序响应集的组合 */
+	/** 交互管线集：按数组顺序装配的管线，标签层级匹配时首个命中者胜出 */
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
 		Category = "引力奇点交互组件",
-		meta = (
-			DisplayName = "交互管线映射",
-			Categories = "Singularis.Interaction.Response",
-			ForceSelection = "true"
-		)
+		meta = (DisplayName = "交互管线集")
 	)
-	TMap<FGameplayTag, FSingularisInteractionPipeline> InteractionPipelineMapping{};
+	TArray<FSingularisInteractionPipeline> InteractionPipelines{};
 
 	/** 交互行为集，响应启用、禁用、悬浮与未悬浮状态变化 */
 	UPROPERTY(
@@ -186,6 +186,16 @@ public:
 
 #pragma endregion
 
+#pragma region UObject Interface
+
+#if WITH_EDITOR
+
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+
+#endif
+
+#pragma endregion
+
 #pragma region ActorComponent Interface
 
 	virtual void BeginPlay() override;
@@ -252,11 +262,12 @@ public:
 	void SetHovered(bool IsHovered);
 
 	/**
-	 * 查询指定响应标签匹配管线的会话原型。
+	 * 查询指定管线标签命中的首个管线的会话原型。
 	 *
+	 * 管线按数组顺序匹配，管线标签为触发标签自身或祖先时命中；
 	 * 供交互者端派生镜像实例（本地预测）使用；无匹配管线或会话未配置时返回 nullptr。
 	 *
-	 * @param ResponseTag 响应标签。
+	 * @param PipelineTag 管线标签。
 	 * @return 会话原型。
 	 */
 	UFUNCTION(
@@ -264,7 +275,7 @@ public:
 		Category = "引力奇点交互组件|API",
 		meta = (DisplayName = "GetInteractionSession")
 	)
-	USingularisInteractionSession* GetInteractionSession(const FGameplayTag& ResponseTag) const;
+	USingularisInteractionSession* GetInteractionSession(const FGameplayTag& PipelineTag) const;
 
 #pragma endregion
 
@@ -277,12 +288,12 @@ public:
 	 * 经交互子系统单一入口转交，玩家、AI 与脚本共用同一通路。
 	 *
 	 * @param Interactor 交互者。
-	 * @param ResponseTag 会话对应的响应标签。
+	 * @param PipelineTag 会话对应的管线标签。
 	 * @param Intent 交互者提交的意图。
 	 */
 	void ReceiveInteractionIntent(
 		AActor* Interactor,
-		const FGameplayTag& ResponseTag,
+		const FGameplayTag& PipelineTag,
 		const FSingularisInteractionIntent& Intent
 	);
 
@@ -295,10 +306,10 @@ private:
 	void RegisterInteractionMappings();
 
 	/** 建立会话：管线匹配、开始判据、派生会话实例并驱动 Begin */
-	void BeginSession(AActor* Interactor, const FGameplayTag& ResponseTag);
+	void BeginSession(AActor* Interactor, const FGameplayTag& PipelineTag);
 
 	/** 拒绝会话：广播取消反馈事件 */
-	void RejectSession(AActor* Interactor, const FGameplayTag& ResponseTag);
+	void RejectSession(AActor* Interactor, const FGameplayTag& PipelineTag);
 
 	/** 结算会话：摘除记录、驱动结算事件与会话收尾，会话不存在时幂等返回 */
 	void SettleSession(const TWeakObjectPtr<AActor>& Interactor, bool bCompleted);
@@ -316,7 +327,7 @@ private:
 	/** 组装会话上下文 */
 	FSingularisInteractionSessionContext BuildSessionContext(
 		const TWeakObjectPtr<AActor>& Interactor,
-		const FGameplayTag& ResponseTag,
+		const FGameplayTag& PipelineTag,
 		float Elapsed
 	);
 

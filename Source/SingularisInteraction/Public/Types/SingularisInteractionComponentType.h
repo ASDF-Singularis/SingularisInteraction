@@ -31,6 +31,7 @@
 #pragma once
 
 #include <CoreMinimal.h>
+#include <GameplayTagContainer.h>
 
 #include "SingularisInteractionComponentType.generated.h"
 
@@ -75,12 +76,25 @@ struct SINGULARISINTERACTION_API FSingularisInteractionResponseEntry
 };
 
 /**
- * 引力奇点交互管线：会话原型与有序响应集的组合，是会话推进的唯一装配单元。
+ * 引力奇点交互管线：管线标签、会话原型与有序响应集的组合，是会话推进的唯一装配单元。
+ *
+ * 管线自带管线标签作为路由键；装配于交互组件时按数组顺序排列，标签层级匹配时首个命中者胜出。
  */
 USTRUCT(BlueprintType)
 struct SINGULARISINTERACTION_API FSingularisInteractionPipeline
 {
 	GENERATED_BODY()
+
+	/** 管线标签：本管线的身份与路由键，限定于 Singularis.Interaction.Pipeline 子树 */
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadWrite,
+		meta = (
+			Categories = "Singularis.Interaction.Pipeline",
+			ForceSelection = "true"
+		)
+	)
+	FGameplayTag PipelineTag{};
 
 	/** 交互会话原型：会话推进规则的执行单元，会话建立时派生专属实例 */
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite)

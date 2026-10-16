@@ -55,6 +55,54 @@ USingularisInteractionComponent::USingularisInteractionComponent()
 	bAutoActivate = true;
 }
 
+#if WITH_EDITOR
+EDataValidationResult USingularisInteractionComponent::IsDataValid(FDataValidationContext& Context) const
+{
+	EDataValidationResult Result = Super::IsDataValid(Context);
+
+	// 1) 逐管线校验标签有效性、标签唯一性与会话原型齐备
+	TSet<FGameplayTag> DeclaredPipelineTags;
+	for (const FSingularisInteractionPipeline& Pipeline : InteractionPipelines)
+	{
+		if (!Pipeline.PipelineTag.IsValid())
+		{
+			Context.AddError(FText::FromString(TEXT("交互管线集存在未配置的管线标签。")));
+			Result = EDataValidationResult::Invalid;
+			continue;
+		}
+
+		if (DeclaredPipelineTags.Contains(Pipeline.PipelineTag))
+		{
+			Context.AddError(
+				FText::FromString(
+					FString::Printf(
+						TEXT("管线标签 %s 重复；层级匹配只命中数组序中的首个管线，重复项永不生效。"),
+						*Pipeline.PipelineTag.ToString()
+					)
+				)
+			);
+			Result = EDataValidationResult::Invalid;
+		}
+		DeclaredPipelineTags.Add(Pipeline.PipelineTag);
+
+		if (!IsValid(Pipeline.Session))
+		{
+			Context.AddError(
+				FText::FromString(
+					FString::Printf(
+						TEXT("管线标签 %s 未配置会话原型，命中后无法建立会话。"),
+						*Pipeline.PipelineTag.ToString()
+					)
+				)
+			);
+			Result = EDataValidationResult::Invalid;
+		}
+	}
+
+	return Result;
+}
+#endif
+
 void USingularisInteractionComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -95,7 +143,7 @@ void USingularisInteractionComponent::TickComponent(
 		}
 
 		Record.Elapsed += DeltaTime;
-		PendingDriveContexts.Add(BuildSessionContext(Interactor, Record.ResponseTag, Record.Elapsed));
+		PendingDriveContexts.Add(BuildSessionContext(Interactor, Record.PipelineTag, Record.Elapsed));
 	}
 
 	// 3) 第二遍：驱动会话推进（会话回调可能反向变更会话表，迭代的是上下文副本）
@@ -229,13 +277,17 @@ void USingularisInteractionComponent::SetHovered(const bool IsHovered)
 }
 
 USingularisInteractionSession* USingularisInteractionComponent::GetInteractionSession(
-	const FGameplayTag& ResponseTag
+	const FGameplayTag& PipelineTag
 ) const
 {
-	// 1) 按标签层级匹配首个管线并返回会话原型
-	for (const auto& [Tag, Pipeline] : InteractionPipelineMapping)
+	// 1) 请求标签无效时无匹配
+	if (!PipelineTag.IsValid())
+		return nullptr;
+
+	// 2) 按数组序取首个标签层级命中的管线，返回其会话原型
+	for (const FSingularisInteractionPipeline& Pipeline : InteractionPipelines)
 	{
-		if (Tag.MatchesTag(ResponseTag) && IsValid(Pipeline.Session))
+		if (Pipeline.PipelineTag.MatchesTag(PipelineTag) && IsValid(Pipeline.Session))
 			return Pipeline.Session;
 	}
 
@@ -244,7 +296,7 @@ USingularisInteractionSession* USingularisInteractionComponent::GetInteractionSe
 
 void USingularisInteractionComponent::ReceiveInteractionIntent(
 	AActor* Interactor,
-	const FGameplayTag& ResponseTag,
+	const FGameplayTag& PipelineTag,
 	const FSingularisInteractionIntent& Intent
 )
 {
@@ -263,14 +315,14 @@ void USingularisInteractionComponent::ReceiveInteractionIntent(
 		return;
 	}
 
-	if (!Intent.IntentTag.IsValid() || !ResponseTag.IsValid())
+	if (!Intent.IntentTag.IsValid() || !PipelineTag.IsValid())
 		return;
 
 	// 2) 禁用时拒绝新会话（广播取消反馈）
 	if (!bIsEnabled)
 	{
 		if (Intent.IntentTag == SingularisInteraction_Intent_Press)
-			RejectSession(Interactor, ResponseTag);
+			RejectSession(Interactor, PipelineTag);
 		return;
 	}
 
@@ -279,7 +331,7 @@ void USingularisInteractionComponent::ReceiveInteractionIntent(
 	// 3) 建立路径：主张意图且无既有会话
 	if (Intent.IntentTag == SingularisInteraction_Intent_Press && !ActiveSessions.Contains(InteractorKey))
 	{
-		BeginSession(Interactor, ResponseTag);
+		BeginSession(Interactor, PipelineTag);
 		return;
 	}
 
@@ -288,7 +340,7 @@ void USingularisInteractionComponent::ReceiveInteractionIntent(
 		return;
 
 	const FSingularisInteractionSessionRecord& Record = ActiveSessions[InteractorKey];
-	if (Record.ResponseTag != ResponseTag)
+	if (Record.PipelineTag != PipelineTag)
 		return;
 
 	if (!IsValid(Record.Session))
@@ -297,7 +349,7 @@ void USingularisInteractionComponent::ReceiveInteractionIntent(
 		return;
 	}
 
-	Record.Session->ReceiveIntent(BuildSessionContext(Record.Interactor, Record.ResponseTag, Record.Elapsed), Intent);
+	Record.Session->ReceiveIntent(BuildSessionContext(Record.Interactor, Record.PipelineTag, Record.Elapsed), Intent);
 }
 
 void USingularisInteractionComponent::RegisterInteractionMappings()
@@ -357,18 +409,18 @@ void USingularisInteractionComponent::RegisterInteractionMappings()
 	);
 }
 
-void USingularisInteractionComponent::BeginSession(AActor* Interactor, const FGameplayTag& ResponseTag)
+void USingularisInteractionComponent::BeginSession(AActor* Interactor, const FGameplayTag& PipelineTag)
 {
 	const TWeakObjectPtr<AActor> InteractorKey(Interactor);
 
 	// 1) 管线匹配：取首个命中管线的会话原型
-	USingularisInteractionSession* SessionArchetype = GetInteractionSession(ResponseTag);
-	const FSingularisInteractionSessionContext GateContext = BuildSessionContext(InteractorKey, ResponseTag, 0.0f);
+	USingularisInteractionSession* SessionArchetype = GetInteractionSession(PipelineTag);
+	const FSingularisInteractionSessionContext GateContext = BuildSessionContext(InteractorKey, PipelineTag, 0.0f);
 
 	// 2) 无匹配会话或开始判据拒绝：广播取消反馈并返回
 	if (!IsValid(SessionArchetype) || !SessionArchetype->CanBegin(GateContext))
 	{
-		RejectSession(Interactor, ResponseTag);
+		RejectSession(Interactor, PipelineTag);
 		return;
 	}
 
@@ -379,7 +431,7 @@ void USingularisInteractionComponent::BeginSession(AActor* Interactor, const FGa
 	);
 	if (!IsValid(SessionInstance))
 	{
-		RejectSession(Interactor, ResponseTag);
+		RejectSession(Interactor, PipelineTag);
 		return;
 	}
 	SessionInstance->BindSessionHost(this);
@@ -387,7 +439,7 @@ void USingularisInteractionComponent::BeginSession(AActor* Interactor, const FGa
 	// 4) 建立会话记录并启用时钟
 	FSingularisInteractionSessionRecord& Record = ActiveSessions.Add(InteractorKey);
 	Record.Interactor = InteractorKey;
-	Record.ResponseTag = ResponseTag;
+	Record.PipelineTag = PipelineTag;
 	Record.Session = SessionInstance;
 	Record.Elapsed = 0.0f;
 	RefreshSessionTick();
@@ -404,19 +456,19 @@ void USingularisInteractionComponent::BeginSession(AActor* Interactor, const FGa
 		TEXT("[%s] BeginSession：交互者 %s 建立会话，标签 %s"),
 		*GetNameSafe(GetOwner()),
 		*GetNameSafe(Interactor),
-		*ResponseTag.ToString()
+		*PipelineTag.ToString()
 	);
 
 	// 7) 驱动会话开始（瞬时会话在此完成，会话可能已被结算，不得再触碰记录）
 	SessionInstance->Begin(GateContext);
 }
 
-void USingularisInteractionComponent::RejectSession(AActor* Interactor, const FGameplayTag& ResponseTag)
+void USingularisInteractionComponent::RejectSession(AActor* Interactor, const FGameplayTag& PipelineTag)
 {
 	// 1) 组装拒绝反馈事件（会话未建立，不驱动响应）
 	FSingularisInteractionSessionEvent Event;
 	Event.EventTag = SingularisInteraction_Event_Cancel;
-	Event.Context = BuildSessionContext(TWeakObjectPtr<AActor>(Interactor), ResponseTag, 0.0f);
+	Event.Context = BuildSessionContext(TWeakObjectPtr<AActor>(Interactor), PipelineTag, 0.0f);
 
 	// 2) 本地广播取消反馈
 	OnInteractionSessionEvent.Broadcast(Event);
@@ -442,7 +494,7 @@ void USingularisInteractionComponent::SettleSession(const TWeakObjectPtr<AActor>
 
 	// 4) 驱动会话收尾
 	if (IsValid(Record.Session))
-		Record.Session->End(BuildSessionContext(Record.Interactor, Record.ResponseTag, Record.Elapsed));
+		Record.Session->End(BuildSessionContext(Record.Interactor, Record.PipelineTag, Record.Elapsed));
 
 	UE_LOG(
 		LogSingularisInteraction,
@@ -464,7 +516,7 @@ void USingularisInteractionComponent::DriveSessionEvent(
 	FSingularisInteractionSessionEvent Event;
 	Event.EventTag = EventTag;
 	Event.Alpha = Alpha;
-	Event.Context = BuildSessionContext(Record.Interactor, Record.ResponseTag, Record.Elapsed);
+	Event.Context = BuildSessionContext(Record.Interactor, Record.PipelineTag, Record.Elapsed);
 
 	// 2) 本地广播
 	OnInteractionSessionEvent.Broadcast(Event);
@@ -482,10 +534,10 @@ void USingularisInteractionComponent::DriveSessionEvent(
 
 void USingularisInteractionComponent::DriveSessionResponses(const FSingularisInteractionSessionEvent& Event)
 {
-	// 1) 层级匹配并逐管线按序驱动响应
-	for (const auto& [Tag, Pipeline] : InteractionPipelineMapping)
+	// 1) 按数组顺序逐管线驱动命中标签的响应集
+	for (const FSingularisInteractionPipeline& Pipeline : InteractionPipelines)
 	{
-		if (!Tag.MatchesTag(Event.Context.ResponseTag))
+		if (!Pipeline.PipelineTag.MatchesTag(Event.Context.PipelineTag))
 			continue;
 
 		for (const auto& [Name, Description, Response] : Pipeline.Responses)
@@ -498,7 +550,7 @@ void USingularisInteractionComponent::DriveSessionResponses(const FSingularisInt
 
 FSingularisInteractionSessionContext USingularisInteractionComponent::BuildSessionContext(
 	const TWeakObjectPtr<AActor>& Interactor,
-	const FGameplayTag& ResponseTag,
+	const FGameplayTag& PipelineTag,
 	const float Elapsed
 )
 {
@@ -509,7 +561,7 @@ FSingularisInteractionSessionContext USingularisInteractionComponent::BuildSessi
 	Context.Avatar = GetOwner();
 	Context.Target = GetOwner();
 	Context.InteractionComponent = this;
-	Context.ResponseTag = ResponseTag;
+	Context.PipelineTag = PipelineTag;
 	Context.Elapsed = Elapsed;
 
 	return Context;
