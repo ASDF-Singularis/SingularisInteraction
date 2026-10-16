@@ -1,5 +1,5 @@
 /* ====================================================================== *
- * SingularisInteractionSubsystem.cpp                                      *
+ * SingularisInteractionSubsystem.cpp                                     *
  * ====================================================================== *
  * SPDX-License-Identifier: MIT                                           *
  * SPDX-FileCopyrightText: 2026 TrifingZW <TrifingZW@gmail.com>           *
