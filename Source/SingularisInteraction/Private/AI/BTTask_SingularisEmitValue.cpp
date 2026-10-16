@@ -70,7 +70,7 @@ EBTNodeResult::Type UBTTask_SingularisEmitValue::ExecuteTask(
 	Interactor->OnInteractorSessionEvent.AddDynamic(this, &UBTTask_SingularisEmitValue::HandleInteractorSessionEvent);
 
 	// 3) 建立会话（可选）；失败即解绑并失败
-	if (bEstablishSession && !Interactor->BeginInteraction(Target, StrategyTag))
+	if (bEstablishSession && !Interactor->BeginInteraction(Target, ResponseTag))
 	{
 		Interactor->OnInteractorSessionEvent.RemoveDynamic(
 			this,
@@ -116,7 +116,7 @@ void UBTTask_SingularisEmitValue::TickTask(
 	ElapsedSeconds += DeltaSeconds;
 	if (ElapsedSeconds >= DurationSeconds)
 	{
-		ObservedInteractor->EndInteraction(ActiveTarget.Get(), StrategyTag);
+		ObservedInteractor->EndInteraction(ActiveTarget.Get(), ResponseTag);
 		FinishLatent(OwnerComp, true);
 	}
 }
@@ -130,7 +130,7 @@ EBTNodeResult::Type UBTTask_SingularisEmitValue::AbortTask(
 	if (ObservedInteractor.IsValid())
 	{
 		if (bEstablishSession)
-			ObservedInteractor->EndInteraction(ActiveTarget.Get(), StrategyTag);
+			ObservedInteractor->EndInteraction(ActiveTarget.Get(), ResponseTag);
 
 		ObservedInteractor->OnInteractorSessionEvent.RemoveDynamic(
 			this,
@@ -153,8 +153,8 @@ FString UBTTask_SingularisEmitValue::GetStaticDescription() const
 		                            : ValueKey.SelectedKeyName.ToString();
 
 	return FString::Printf(
-		TEXT("策略标签: %s\n目标键: %s\n供值: %s"),
-		*StrategyTag.ToString(),
+		TEXT("响应标签: %s\n目标键: %s\n供值: %s"),
+		*ResponseTag.ToString(),
 		*TargetKey.SelectedKeyName.ToString(),
 		*ValueSource
 	);
@@ -165,10 +165,10 @@ void UBTTask_SingularisEmitValue::HandleInteractorSessionEvent(
 	FSingularisInteractionSessionEvent Event
 )
 {
-	// 1) 仅关注本任务会话（交互者与策略标签一致）
+	// 1) 仅关注本任务会话（交互者与响应标签一致）
 	if (!ObservedInteractor.IsValid() || Event.Context.Interactor != ObservedInteractor->GetOwner())
 		return;
-	if (Event.Context.ResponseTag != StrategyTag)
+	if (Event.Context.ResponseTag != ResponseTag)
 		return;
 
 	// 2) 结算判据：达成为成功、中止为失败
@@ -237,7 +237,7 @@ void UBTTask_SingularisEmitValue::EmitValue(UBehaviorTreeComponent& OwnerComp)
 
 	ObservedInteractor->SubmitInteractionIntent(
 		ActiveTarget.Get(),
-		StrategyTag,
+		ResponseTag,
 		SingularisInteraction_Intent_Value,
 		FSingularisInteractionValue(ResolveValue(OwnerComp))
 	);

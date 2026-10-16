@@ -90,7 +90,7 @@ public:
 	)
 	int32 InputPriority = 10;
 
-	/** 输入绑定集：动作 → 策略标签 */
+	/** 输入绑定集：动作 → 响应标签 */
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
@@ -122,7 +122,7 @@ public:
 private:
 #pragma region State
 
-	/** 连续值跟踪表，键为策略标签 */
+	/** 连续值跟踪表，键为响应标签 */
 	TMap<FGameplayTag, FSingularisInteractionValueTracking> ValueTracking{};
 
 #pragma endregion
@@ -149,20 +149,20 @@ private:
 #pragma region Callback
 
 	/** 输入按下回调：提交主张意图 */
-	void HandleActionStarted(const FInputActionValue& ActionValue, FGameplayTag StrategyTag);
+	void HandleActionStarted(const FInputActionValue& ActionValue, FGameplayTag ResponseTag);
 
 	/** 输入松开或强制取消回调：提交撤回意图 */
-	void HandleActionReleased(const FInputActionValue& ActionValue, FGameplayTag StrategyTag);
+	void HandleActionReleased(const FInputActionValue& ActionValue, FGameplayTag ResponseTag);
 
 	/** 输入持续回调：节流提交连续值意图 */
-	void HandleActionValue(const FInputActionValue& ActionValue, FGameplayTag StrategyTag);
+	void HandleActionValue(const FInputActionValue& ActionValue, FGameplayTag ResponseTag);
 
 #pragma endregion
 
 #pragma region Internal Function
 
 	/** 提交意图至宿主交互者组件 */
-	void SubmitIntent(FGameplayTag StrategyTag, FGameplayTag IntentTag, const FSingularisInteractionValue& Value) const;
+	void SubmitIntent(FGameplayTag ResponseTag, FGameplayTag IntentTag, const FSingularisInteractionValue& Value) const;
 
 	/** 依据当前目标状态挂载或卸载输入映射上下文 */
 	void RefreshInputMappingContext() const;

@@ -90,7 +90,7 @@ USingularisInteractionEnhancedInputDriver::USingularisInteractionEnhancedInputDr
 	{
 		FSingularisInteractionInputBinding DefaultBinding;
 		DefaultBinding.InputAction = DefaultInteractionActionFinder.Object;
-		DefaultBinding.StrategyTag = SingularisInteraction_Strategy_Default;
+		DefaultBinding.ResponseTag = SingularisInteraction_Response_Default;
 		InputBindings.Add(DefaultBinding);
 	}
 	else
@@ -130,7 +130,7 @@ void USingularisInteractionEnhancedInputDriver::InitializeDriver_Implementation(
 	// 2) 逐条绑定动作（按下 / 松开 / 强制取消 / 连续值）
 	for (const FSingularisInteractionInputBinding& Binding : InputBindings)
 	{
-		if (!IsValid(Binding.InputAction) || !Binding.StrategyTag.IsValid())
+		if (!IsValid(Binding.InputAction) || !Binding.ResponseTag.IsValid())
 			continue;
 
 		EnhancedInputComponent->BindAction(
@@ -138,21 +138,21 @@ void USingularisInteractionEnhancedInputDriver::InitializeDriver_Implementation(
 			ETriggerEvent::Started,
 			this,
 			&USingularisInteractionEnhancedInputDriver::HandleActionStarted,
-			Binding.StrategyTag
+			Binding.ResponseTag
 		);
 		EnhancedInputComponent->BindAction(
 			Binding.InputAction,
 			ETriggerEvent::Completed,
 			this,
 			&USingularisInteractionEnhancedInputDriver::HandleActionReleased,
-			Binding.StrategyTag
+			Binding.ResponseTag
 		);
 		EnhancedInputComponent->BindAction(
 			Binding.InputAction,
 			ETriggerEvent::Canceled,
 			this,
 			&USingularisInteractionEnhancedInputDriver::HandleActionReleased,
-			Binding.StrategyTag
+			Binding.ResponseTag
 		);
 
 		if (Binding.bCarryValue)
@@ -162,7 +162,7 @@ void USingularisInteractionEnhancedInputDriver::InitializeDriver_Implementation(
 				ETriggerEvent::Triggered,
 				this,
 				&USingularisInteractionEnhancedInputDriver::HandleActionValue,
-				Binding.StrategyTag
+				Binding.ResponseTag
 			);
 		}
 	}
@@ -207,25 +207,25 @@ void USingularisInteractionEnhancedInputDriver::OnTargetChanged_Implementation(
 
 void USingularisInteractionEnhancedInputDriver::HandleActionStarted(
 	const FInputActionValue& ActionValue,
-	const FGameplayTag StrategyTag
+	const FGameplayTag ResponseTag
 )
 {
 	// 1) 提交主张意图（量值携带力度）
-	SubmitIntent(StrategyTag, SingularisInteraction_Intent_Press, ToInteractionValue(ActionValue));
+	SubmitIntent(ResponseTag, SingularisInteraction_Intent_Press, ToInteractionValue(ActionValue));
 }
 
 void USingularisInteractionEnhancedInputDriver::HandleActionReleased(
 	const FInputActionValue& ActionValue,
-	const FGameplayTag StrategyTag
+	const FGameplayTag ResponseTag
 )
 {
 	// 1) 提交撤回意图
-	SubmitIntent(StrategyTag, SingularisInteraction_Intent_Release, FSingularisInteractionValue());
+	SubmitIntent(ResponseTag, SingularisInteraction_Intent_Release, FSingularisInteractionValue());
 }
 
 void USingularisInteractionEnhancedInputDriver::HandleActionValue(
 	const FInputActionValue& ActionValue,
-	const FGameplayTag StrategyTag
+	const FGameplayTag ResponseTag
 )
 {
 	// 1) 节流与死区判据：间隔未达且量值变化细微时不提交（标量型取带符号分量，其余取幅值，避免正负翻向被吞）
@@ -234,7 +234,7 @@ void USingularisInteractionEnhancedInputDriver::HandleActionValue(
 	const FSingularisInteractionValue Sample = ToInteractionValue(ActionValue);
 	const float Value = Sample.IsAxis1D() ? Sample.GetScalar() : Sample.GetMagnitude();
 
-	FSingularisInteractionValueTracking& Tracking = ValueTracking.FindOrAdd(StrategyTag);
+	FSingularisInteractionValueTracking& Tracking = ValueTracking.FindOrAdd(ResponseTag);
 	if (Now - Tracking.Time < ValueSubmitInterval && FMath::Abs(Value - Tracking.Value) < ValueDeadband)
 		return;
 
@@ -242,11 +242,11 @@ void USingularisInteractionEnhancedInputDriver::HandleActionValue(
 	Tracking.Value = Value;
 
 	// 2) 提交连续值意图
-	SubmitIntent(StrategyTag, SingularisInteraction_Intent_Value, Sample);
+	SubmitIntent(ResponseTag, SingularisInteraction_Intent_Value, Sample);
 }
 
 void USingularisInteractionEnhancedInputDriver::SubmitIntent(
-	const FGameplayTag StrategyTag,
+	const FGameplayTag ResponseTag,
 	const FGameplayTag IntentTag,
 	const FSingularisInteractionValue& Value
 ) const
@@ -257,7 +257,7 @@ void USingularisInteractionEnhancedInputDriver::SubmitIntent(
 
 	GetInteractorComponent()->SubmitInteractionIntent(
 		GetInteractorComponent()->GetCurrentTarget(),
-		StrategyTag,
+		ResponseTag,
 		IntentTag,
 		Value
 	);

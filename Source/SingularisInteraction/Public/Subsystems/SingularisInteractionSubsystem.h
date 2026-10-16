@@ -116,7 +116,7 @@ public:
 	 *
 	 * @param Interactor 交互者。
 	 * @param TargetInteractionComponent 目标交互组件。
-	 * @param StrategyTag 会话对应的策略标签。
+	 * @param ResponseTag 会话对应的响应标签。
 	 * @param Intent 交互者提交的意图。
 	 * @return 受理时返回 true。
 	 */
@@ -128,7 +128,7 @@ public:
 	bool SubmitInteractionIntent(
 		AActor* Interactor,
 		USingularisInteractionComponent* TargetInteractionComponent,
-		FGameplayTag StrategyTag,
+		FGameplayTag ResponseTag,
 		FSingularisInteractionIntent Intent
 	);
 

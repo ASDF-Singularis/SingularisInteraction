@@ -97,18 +97,18 @@ public:
 	)
 	TArray<FComponentReference> TargetComponentReferences{};
 
-	/** 交互策略管线映射，键为策略标签，值为会话原型与有序响应集的组合 */
+	/** 交互管线映射，键为响应标签，值为会话原型与有序响应集的组合 */
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
 		Category = "引力奇点交互组件",
 		meta = (
-			DisplayName = "交互策略管线映射",
-			Categories = "Singularis.Interaction.Strategy",
+			DisplayName = "交互管线映射",
+			Categories = "Singularis.Interaction.Response",
 			ForceSelection = "true"
 		)
 	)
-	TMap<FGameplayTag, FSingularisInteractionStrategyPipeline> InteractionStrategyPipelineMapping{};
+	TMap<FGameplayTag, FSingularisInteractionPipeline> InteractionPipelineMapping{};
 
 	/** 交互行为集，响应启用、禁用、悬浮与未悬浮状态变化 */
 	UPROPERTY(
@@ -252,11 +252,11 @@ public:
 	void SetHovered(bool IsHovered);
 
 	/**
-	 * 查询指定策略标签匹配管线的会话原型。
+	 * 查询指定响应标签匹配管线的会话原型。
 	 *
 	 * 供交互者端派生镜像实例（本地预测）使用；无匹配管线或会话未配置时返回 nullptr。
 	 *
-	 * @param StrategyTag 策略标签。
+	 * @param ResponseTag 响应标签。
 	 * @return 会话原型。
 	 */
 	UFUNCTION(
@@ -264,7 +264,7 @@ public:
 		Category = "引力奇点交互组件|API",
 		meta = (DisplayName = "GetInteractionSession")
 	)
-	USingularisInteractionSession* GetInteractionSession(const FGameplayTag& StrategyTag) const;
+	USingularisInteractionSession* GetInteractionSession(const FGameplayTag& ResponseTag) const;
 
 #pragma endregion
 
@@ -277,12 +277,12 @@ public:
 	 * 经交互子系统单一入口转交，玩家、AI 与脚本共用同一通路。
 	 *
 	 * @param Interactor 交互者。
-	 * @param StrategyTag 会话对应的策略标签。
+	 * @param ResponseTag 会话对应的响应标签。
 	 * @param Intent 交互者提交的意图。
 	 */
 	void ReceiveInteractionIntent(
 		AActor* Interactor,
-		const FGameplayTag& StrategyTag,
+		const FGameplayTag& ResponseTag,
 		const FSingularisInteractionIntent& Intent
 	);
 
@@ -295,10 +295,10 @@ private:
 	void RegisterInteractionMappings();
 
 	/** 建立会话：管线匹配、开始判据、派生会话实例并驱动 Begin */
-	void BeginSession(AActor* Interactor, const FGameplayTag& StrategyTag);
+	void BeginSession(AActor* Interactor, const FGameplayTag& ResponseTag);
 
 	/** 拒绝会话：广播取消反馈事件 */
-	void RejectSession(AActor* Interactor, const FGameplayTag& StrategyTag);
+	void RejectSession(AActor* Interactor, const FGameplayTag& ResponseTag);
 
 	/** 结算会话：摘除记录、驱动结算事件与会话收尾，会话不存在时幂等返回 */
 	void SettleSession(const TWeakObjectPtr<AActor>& Interactor, bool bCompleted);

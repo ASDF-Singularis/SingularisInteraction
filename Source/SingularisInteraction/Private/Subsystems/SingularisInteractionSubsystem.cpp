@@ -48,7 +48,7 @@ void USingularisInteractionSubsystem::Deinitialize() { Super::Deinitialize(); }
 bool USingularisInteractionSubsystem::SubmitInteractionIntent(
 	AActor* Interactor,
 	USingularisInteractionComponent* TargetInteractionComponent,
-	const FGameplayTag StrategyTag,
+	const FGameplayTag ResponseTag,
 	const FSingularisInteractionIntent Intent
 )
 {
@@ -59,11 +59,11 @@ bool USingularisInteractionSubsystem::SubmitInteractionIntent(
 		return false;
 	}
 
-	if (!StrategyTag.IsValid() || !Intent.IntentTag.IsValid())
+	if (!ResponseTag.IsValid() || !Intent.IntentTag.IsValid())
 		return false;
 
 	// 2) 转交目标组件（会话唯一结算入口）
-	TargetInteractionComponent->ReceiveInteractionIntent(Interactor, StrategyTag, Intent);
+	TargetInteractionComponent->ReceiveInteractionIntent(Interactor, ResponseTag, Intent);
 	return true;
 }
 

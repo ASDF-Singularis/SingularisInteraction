@@ -58,16 +58,16 @@ class SINGULARISINTERACTION_API UBTTask_SingularisBeginInteraction : public UBTT
 public:
 	UBTTask_SingularisBeginInteraction();
 
-	/** 会话对应的策略标签 */
+	/** 会话对应的响应标签 */
 	UPROPERTY(
 		EditAnywhere,
 		Category = "引力奇点交互",
 		meta = (
-			Categories = "Singularis.Interaction.Strategy",
+			Categories = "Singularis.Interaction.Response",
 			ForceSelection = "true"
 		)
 	)
-	FGameplayTag StrategyTag{};
+	FGameplayTag ResponseTag{};
 
 	/** 目标黑板键（交互组件或 Actor） */
 	UPROPERTY(EditAnywhere, Category = "引力奇点交互")

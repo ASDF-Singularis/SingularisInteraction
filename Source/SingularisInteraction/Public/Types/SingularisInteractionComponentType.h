@@ -75,10 +75,10 @@ struct SINGULARISINTERACTION_API FSingularisInteractionResponseEntry
 };
 
 /**
- * 引力奇点交互策略管线：会话原型与有序响应集的组合，是会话推进的唯一装配单元。
+ * 引力奇点交互管线：会话原型与有序响应集的组合，是会话推进的唯一装配单元。
  */
 USTRUCT(BlueprintType)
-struct SINGULARISINTERACTION_API FSingularisInteractionStrategyPipeline
+struct SINGULARISINTERACTION_API FSingularisInteractionPipeline
 {
 	GENERATED_BODY()
 
