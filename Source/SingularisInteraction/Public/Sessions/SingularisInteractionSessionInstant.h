@@ -44,7 +44,7 @@ UCLASS(
 	NotBlueprintable,
 	BlueprintType,
 	ClassGroup = ("Singularis"),
-	meta = (DisplayName = "引力奇点瞬时交互会话")
+	meta = (DisplayName = "瞬时")
 )
 class SINGULARISINTERACTION_API USingularisInteractionSessionInstant : public USingularisInteractionSession
 {
