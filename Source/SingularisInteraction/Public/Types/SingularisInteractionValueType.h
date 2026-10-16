@@ -43,16 +43,16 @@ UENUM(BlueprintType)
 enum class ESingularisInteractionValueType : uint8
 {
 	/** 布尔：仅有无 */
-	Boolean UMETA(DisplayName = "布尔"),
+	Boolean,
 
 	/** 一维：带符号标量（轴值 / 力度） */
-	Axis1D UMETA(DisplayName = "一维"),
+	Axis1D,
 
 	/** 二维：平面向量（屏幕位移 / 摇杆） */
-	Axis2D UMETA(DisplayName = "二维"),
+	Axis2D,
 
 	/** 三维：空间向量（世界位移 / 拖拽） */
-	Axis3D UMETA(DisplayName = "三维"),
+	Axis3D,
 };
 
 /**
