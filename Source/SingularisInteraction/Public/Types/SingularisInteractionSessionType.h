@@ -38,6 +38,7 @@
 #include "SingularisInteractionSessionType.generated.h"
 
 class AActor;
+class AController;
 class APawn;
 class USingularisInteractionComponent;
 class USingularisInteractionSession;
@@ -53,11 +54,11 @@ struct SINGULARISINTERACTION_API FSingularisInteractionSessionContext
 {
 	GENERATED_BODY()
 
-	/** 交互者（发起会话的 Actor：控制器 / Pawn / 任意对象） */
+	/** 控制器：交互者的控制器（无控制者时为空，如客户端的远端 Pawn） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<AActor> Interactor = nullptr;
+	TObjectPtr<AController> Controller = nullptr;
 
-	/** 触发者 */
+	/** 触发者：由发起主体解析得到的 Pawn（主体本身为 Pawn 时取其自身，为控制器时取其 Pawn） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<APawn> Instigator = nullptr;
 
@@ -118,7 +119,7 @@ struct SINGULARISINTERACTION_API FSingularisInteractionSessionEvent
  */
 struct FSingularisInteractionSessionRecord
 {
-	/** 交互者 */
+	/** 发起主体 Actor（会话表键） */
 	TWeakObjectPtr<AActor> Interactor = nullptr;
 
 	/** 会话对应的管线标签 */

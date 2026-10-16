@@ -45,7 +45,6 @@
 #include "SingularisInteractionComponent.generated.h"
 
 class AActor;
-class APawn;
 
 #pragma region 委托签名
 
@@ -174,7 +173,7 @@ private:
 	/** 当前是否被悬浮 */
 	bool bIsHovered = false;
 
-	/** 活跃会话表，键为交互者 */
+	/** 活跃会话表，键为发起主体 Actor */
 	TMap<TWeakObjectPtr<AActor>, FSingularisInteractionSessionRecord> ActiveSessions{};
 
 #pragma endregion
@@ -294,7 +293,7 @@ public:
 	 * 主导航（Press）建立会话，其余意图转发至会话实例。
 	 * 经交互子系统单一入口转交，玩家、AI 与脚本共用同一通路。
 	 *
-	 * @param Interactor 交互者。
+	 * @param Interactor 发起交互的主体 Actor（会话表键）。
 	 * @param PipelineTag 会话对应的管线标签。
 	 * @param Intent 交互者提交的意图。
 	 */
@@ -342,11 +341,8 @@ private:
 	/** 依据会话表空非空切换组件 Tick */
 	void RefreshSessionTick();
 
-	/** 按会话实例反查所属会话的交互者 */
+	/** 按会话实例反查所属会话的发起主体 Actor（会话表键） */
 	TWeakObjectPtr<AActor> FindSessionInteractor(const USingularisInteractionSession* Session) const;
-
-	/** 由交互者解析触发者 Pawn */
-	static APawn* ResolveInstigator(AActor* Interactor);
 
 #pragma endregion
 };

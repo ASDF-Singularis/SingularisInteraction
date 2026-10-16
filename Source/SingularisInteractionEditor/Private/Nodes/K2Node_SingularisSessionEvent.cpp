@@ -140,7 +140,7 @@ void UK2Node_SingularisSessionEvent::AllocateDefaultPins()
 	);
 	ContextPin->PinToolTip = LOCTEXT(
 		"ContextPinTip",
-		"本帧会话事件的会话上下文：交互者、实例者、宿主、目标、交互组件、管线标签与累计时长；可拆分取字段"
+		"本帧会话事件的会话上下文：控制器、触发者、宿主、目标、交互组件、管线标签与累计时长；可拆分取字段"
 	).ToString();
 
 	UEdGraphPin* const ValuePin = CreatePin(

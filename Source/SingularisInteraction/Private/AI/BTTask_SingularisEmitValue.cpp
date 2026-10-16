@@ -166,7 +166,9 @@ void UBTTask_SingularisEmitValue::HandleInteractorSessionEvent(
 )
 {
 	// 1) 仅关注本任务会话（交互者与管线标签一致）
-	if (!ObservedInteractor.IsValid() || Event.Context.Interactor != ObservedInteractor->GetOwner())
+	if (!ObservedInteractor.IsValid()
+		|| (ObservedInteractor->GetOwner() != Event.Context.Instigator.Get()
+			&& ObservedInteractor->GetOwner() != Event.Context.Controller.Get()))
 		return;
 	if (Event.Context.PipelineTag != PipelineTag)
 		return;

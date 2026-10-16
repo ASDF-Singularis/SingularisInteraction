@@ -132,7 +132,7 @@ void USingularisInteractionComponent::TickComponent(
 
 	// 2) 第一遍：仅推进会话时钟与上下文快照（无外部调用，避免迭代中变更）
 	TArray<TWeakObjectPtr<AActor>> PendingCancelInteractors;
-	TArray<FSingularisInteractionSessionContext> PendingDriveContexts;
+	TArray<TPair<TWeakObjectPtr<AActor>, FSingularisInteractionSessionContext>> PendingDriveSnapshots;
 
 	for (auto& [Interactor, Record] : ActiveSessions)
 	{
@@ -143,13 +143,12 @@ void USingularisInteractionComponent::TickComponent(
 		}
 
 		Record.Elapsed += DeltaTime;
-		PendingDriveContexts.Add(BuildSessionContext(Interactor, Record.PipelineTag, Record.Elapsed));
+		PendingDriveSnapshots.Emplace(Interactor, BuildSessionContext(Interactor, Record.PipelineTag, Record.Elapsed));
 	}
 
-	// 3) 第二遍：驱动会话推进（会话回调可能反向变更会话表，迭代的是上下文副本）
-	for (const FSingularisInteractionSessionContext& Context : PendingDriveContexts)
+	// 3) 第二遍：驱动会话推进（会话回调可能反向变更会话表，迭代的是键与上下文的快照副本）
+	for (const auto& [InteractorKey, Context] : PendingDriveSnapshots)
 	{
-		const TWeakObjectPtr<AActor> InteractorKey(Context.Interactor.Get());
 		if (!ActiveSessions.Contains(InteractorKey))
 			continue;
 
@@ -573,10 +572,14 @@ FSingularisInteractionSessionContext USingularisInteractionComponent::BuildSessi
 	const float Elapsed
 )
 {
-	// 1) 组装会话上下文（逻辑端不携带输入语义）
+	// 1) 组装会话上下文（逻辑端不携带输入语义）：触发者与控制器按发起主体就地推导
+	AActor* const InteractorActor = Interactor.Get();
 	FSingularisInteractionSessionContext Context;
-	Context.Interactor = Interactor.Get();
-	Context.Instigator = ResolveInstigator(Interactor.Get());
+	if (APawn* const AsPawn = Cast<APawn>(InteractorActor))
+		Context.Instigator = AsPawn;
+	else if (const AController* AsController = Cast<AController>(InteractorActor))
+		Context.Instigator = AsController->GetPawn();
+	Context.Controller = Context.Instigator ? Context.Instigator->GetController() : nullptr;
 	Context.Avatar = GetOwner();
 	Context.Target = GetOwner();
 	Context.InteractionComponent = this;
@@ -592,24 +595,12 @@ TWeakObjectPtr<AActor> USingularisInteractionComponent::FindSessionInteractor(
 	const USingularisInteractionSession* Session
 ) const
 {
-	// 1) 线性反查会话归属会话（会话规模为个位数）
+	// 1) 线性反查（会话表规模等于并发交互者数，无需索引）
 	for (const auto& [Interactor, Record] : ActiveSessions)
 	{
 		if (Record.Session == Session)
 			return Interactor;
 	}
-
-	return nullptr;
-}
-
-APawn* USingularisInteractionComponent::ResolveInstigator(AActor* Interactor)
-{
-	// 1) Pawn 即触发者，控制器取其 Pawn
-	if (const APawn* AsPawn = Cast<APawn>(Interactor))
-		return const_cast<APawn*>(AsPawn);
-
-	if (const AController* AsController = Cast<AController>(Interactor))
-		return AsController->GetPawn();
 
 	return nullptr;
 }

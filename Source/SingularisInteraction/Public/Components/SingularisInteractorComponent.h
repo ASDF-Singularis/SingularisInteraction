@@ -44,7 +44,6 @@
 
 class AActor;
 class APlayerController;
-class APawn;
 class USingularisInteractionComponent;
 
 #pragma region 委托签名
@@ -330,9 +329,6 @@ private:
 
 	/** 响应式编程：应用查询结果副作用（目标事件绑定、驱动器通知、悬浮迁移、驱动中断） */
 	void ApplyQueryerResult(const FSingularisInteractionQueryerResult& OldQueryerResult);
-
-	/** 由交互者解析触发者 Pawn */
-	static APawn* ResolveInstigator(AActor* Interactor);
 
 	/** 启动镜像会话（以原型副本派生，绑定本组件为宿主） */
 	bool BeginMirror(const USingularisInteractionSession* Archetype);

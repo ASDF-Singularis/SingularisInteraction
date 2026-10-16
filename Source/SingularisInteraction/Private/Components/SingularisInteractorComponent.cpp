@@ -283,7 +283,8 @@ void USingularisInteractorComponent::HandleTargetSessionEvent(FSingularisInterac
 {
 	// 1) 仅关注本交互者会话：目标随绑定隐式确定（绑定与解绑均随目标迁移），零信任丢弃失效目标
 	USingularisInteractionComponent* const Target = GetCurrentTarget();
-	if (!IsValid(Target) || Event.Context.Interactor != GetOwner())
+	if (!IsValid(Target)
+		|| (GetOwner() != Event.Context.Instigator.Get() && GetOwner() != Event.Context.Controller.Get()))
 		return;
 
 	// 2) 本地玩家：本地会话流自持，不消费会话端事件
@@ -403,18 +404,6 @@ void USingularisInteractorComponent::ApplyQueryerResult(
 		InteractionDriver->OnTargetChanged(OldTarget, NewTarget);
 }
 
-APawn* USingularisInteractorComponent::ResolveInstigator(AActor* Interactor)
-{
-	// 1) Pawn 即触发者，控制器取其 Pawn
-	if (const APawn* AsPawn = Cast<APawn>(Interactor))
-		return const_cast<APawn*>(AsPawn);
-
-	if (const AController* AsController = Cast<AController>(Interactor))
-		return AsController->GetPawn();
-
-	return nullptr;
-}
-
 bool USingularisInteractorComponent::BeginMirror(const USingularisInteractionSession* Archetype)
 {
 	// 1) 原型与驱动目标校验，派生镜像实例
@@ -427,14 +416,17 @@ bool USingularisInteractorComponent::BeginMirror(const USingularisInteractionSes
 
 	MirrorInstance->BindSessionHost(this);
 
-	// 2) 装配镜像状态（会话启动置于末尾）
+	// 2) 装配镜像状态（触发者与控制器按本组件宿主就地推导；会话启动置于末尾）
 	MirrorSession = MirrorInstance;
 	bMirrorActive = true;
 	MirrorElapsed = 0.0f;
 
 	MirrorContext = FSingularisInteractionSessionContext{};
-	MirrorContext.Interactor = GetOwner();
-	MirrorContext.Instigator = ResolveInstigator(GetOwner());
+	if (APawn* const OwnerPawn = Cast<APawn>(GetOwner()))
+		MirrorContext.Instigator = OwnerPawn;
+	else if (const AController* OwnerController = Cast<AController>(GetOwner()))
+		MirrorContext.Instigator = OwnerController->GetPawn();
+	MirrorContext.Controller = MirrorContext.Instigator ? MirrorContext.Instigator->GetController() : nullptr;
 	MirrorContext.Avatar = DriveTarget->GetOwner();
 	MirrorContext.Target = DriveTarget->GetOwner();
 	MirrorContext.InteractionComponent = DriveTarget.Get();
@@ -478,13 +470,16 @@ void USingularisInteractorComponent::BroadcastInteractorSession(
 	const FInstancedStruct& Payload
 ) const
 {
-	// 1) 组装会话事件（含身份上下文）
+	// 1) 组装会话事件（含身份上下文）：触发者与控制器按本组件宿主就地推导
 	FSingularisInteractionSessionEvent Event;
 	Event.EventTag = EventTag;
 	Event.Value = Value;
 	Event.Payload = Payload;
-	Event.Context.Interactor = GetOwner();
-	Event.Context.Instigator = ResolveInstigator(GetOwner());
+	if (APawn* const OwnerPawn = Cast<APawn>(GetOwner()))
+		Event.Context.Instigator = OwnerPawn;
+	else if (const AController* OwnerController = Cast<AController>(GetOwner()))
+		Event.Context.Instigator = OwnerController->GetPawn();
+	Event.Context.Controller = Event.Context.Instigator ? Event.Context.Instigator->GetController() : nullptr;
 	Event.Context.Avatar = IsValid(Target) ? Target->GetOwner() : nullptr;
 	Event.Context.Target = Event.Context.Avatar;
 	Event.Context.InteractionComponent = Target;
