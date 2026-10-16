@@ -44,7 +44,6 @@
 
 #include "Objects/SingularisInteractionResponse.h"
 #include "Styles/SingularisInteractionEditorStyle.h"
-#include "Types/SingularisInteractionGameplayTags.h"
 #include "Types/SingularisInteractionSessionType.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_SingularisSessionEvent"
@@ -179,7 +178,7 @@ void UK2Node_SingularisSessionEvent::PostPasteNode()
 	RefreshEventFunctionName();
 }
 
-void UK2Node_SingularisSessionEvent::PostDuplicate(bool bDuplicateForPIE)
+void UK2Node_SingularisSessionEvent::PostDuplicate(const bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 
@@ -378,7 +377,7 @@ bool UK2Node_SingularisSessionEvent::IsConnectionDisallowed(
 	return Super::IsConnectionDisallowed(MyPin, OtherPin, OutReason);
 }
 
-FString UK2Node_SingularisSessionEvent::GetPinMetaData(FName InPinName, FName InKey)
+FString UK2Node_SingularisSessionEvent::GetPinMetaData(const FName InPinName, const FName InKey)
 {
 	// 订阅标签引脚申报域限元数据：与项目内受域限标签属性同键约定，
 	// 标签选择器据此把可选标签限制在事件域子树，并拒绝手填域外标签
