@@ -84,21 +84,22 @@ void USingularisInteractionWidgetComponent::BeginPlay()
 	ObserveInteractionComponent();
 }
 
-void USingularisInteractionWidgetComponent::HandleSessionEvent(FSingularisInteractionSessionEvent Event)
+// ReSharper disable once CppPassValueParameterByConstReference
+void USingularisInteractionWidgetComponent::HandleSessionEvent(FSingularisInteractionSessionEvent Event) const
 {
 	if (!IsValid(InteractionView.GetObject())) return;
 
 	ISingularisInteractionViewInterface::Execute_OnSessionEvent(InteractionView.GetObject(), Event);
 }
 
-void USingularisInteractionWidgetComponent::HandleHover()
+void USingularisInteractionWidgetComponent::HandleHover() const
 {
 	if (!IsValid(InteractionView.GetObject())) return;
 
 	ISingularisInteractionViewInterface::Execute_OnHover(InteractionView.GetObject());
 }
 
-void USingularisInteractionWidgetComponent::HandleUnhover()
+void USingularisInteractionWidgetComponent::HandleUnhover() const
 {
 	if (!IsValid(InteractionView.GetObject())) return;
 

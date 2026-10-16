@@ -188,6 +188,7 @@ void FSingularisInteractionBlueprintCompileHook::HandleCDOCompiled(
 		return;
 
 	ResponseCDO->DeclaredSessionEventHandlers = MoveTemp(Backfilled);
+	// ReSharper disable once CppExpressionWithoutSideEffects
 	ResponseCDO->MarkPackageDirty();
 
 	UE_LOG(

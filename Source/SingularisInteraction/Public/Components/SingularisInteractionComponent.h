@@ -34,10 +34,6 @@
 #include <GameplayTagContainer.h>
 #include <Components/ActorComponent.h>
 
-#if WITH_EDITOR
-#include <Misc/DataValidation.h>
-#endif
-
 #include "Interfaces/SingularisInteractionSessionHost.h"
 #include "Types/SingularisInteractionComponentType.h"
 #include "Types/SingularisInteractionIntentType.h"

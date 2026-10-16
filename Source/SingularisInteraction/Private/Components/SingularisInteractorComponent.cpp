@@ -466,6 +466,7 @@ void USingularisInteractorComponent::BroadcastInteractorSession(
 	USingularisInteractionComponent* Target,
 	const FGameplayTag& PipelineTag,
 	const FGameplayTag& EventTag,
+	// ReSharper disable once CppPassValueParameterByConstReference
 	FSingularisInteractionValue Value,
 	const FInstancedStruct& Payload
 ) const

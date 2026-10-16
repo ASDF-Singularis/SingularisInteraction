@@ -105,7 +105,7 @@ USingularisInteractionComponent* USingularisInteractionSubsystem::MappingCompone
 void USingularisInteractionSubsystem::NotifyWorldSessionEvent(
 	USingularisInteractionComponent* Target,
 	const FSingularisInteractionSessionEvent& Event
-)
+) const
 {
 	// 1) 广播世界级会话事件（全局观察 / 遥测）
 	OnWorldInteractionSessionEvent.Broadcast(Target, Event);

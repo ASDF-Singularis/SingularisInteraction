@@ -127,7 +127,7 @@ void USingularisInteractorWidgetComponent::SetInteractorView(
 void USingularisInteractorWidgetComponent::HandleTargetChanged(
 	USingularisInteractionComponent* OldTarget,
 	USingularisInteractionComponent* NewTarget
-)
+) const
 {
 	if (!IsValid(InteractorView.GetObject())) return;
 
@@ -140,8 +140,9 @@ void USingularisInteractorWidgetComponent::HandleTargetChanged(
 
 void USingularisInteractorWidgetComponent::HandleSessionEvent(
 	USingularisInteractionComponent* Target,
+	// ReSharper disable once CppPassValueParameterByConstReference
 	FSingularisInteractionSessionEvent Event
-)
+) const
 {
 	if (!IsValid(InteractorView.GetObject())) return;
 

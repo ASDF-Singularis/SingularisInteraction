@@ -154,15 +154,15 @@ private:
 
 	/** 交互会话事件回调：转发至视图 */
 	UFUNCTION()
-	void HandleSessionEvent(FSingularisInteractionSessionEvent Event);
+	void HandleSessionEvent(FSingularisInteractionSessionEvent Event) const;
 
 	/** 交互悬浮回调：转发至视图 */
 	UFUNCTION()
-	void HandleHover();
+	void HandleHover() const;
 
 	/** 交互未悬浮回调：转发至视图 */
 	UFUNCTION()
-	void HandleUnhover();
+	void HandleUnhover() const;
 
 	/** 提示范围 BeginOverlap 回调：本地玩家进入范围时通知视图 */
 	UFUNCTION()

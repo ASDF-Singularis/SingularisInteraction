@@ -186,7 +186,7 @@ public:
 	void NotifyWorldSessionEvent(
 		USingularisInteractionComponent* Target,
 		const FSingularisInteractionSessionEvent& Event
-	);
+	) const;
 
 #pragma endregion
 };

@@ -155,11 +155,11 @@ private:
 	void HandleTargetChanged(
 		USingularisInteractionComponent* OldTarget,
 		USingularisInteractionComponent* NewTarget
-	);
+	) const;
 
 	/** 交互者会话事件回调：转发至视图 */
 	UFUNCTION()
-	void HandleSessionEvent(USingularisInteractionComponent* Target, FSingularisInteractionSessionEvent Event);
+	void HandleSessionEvent(USingularisInteractionComponent* Target, FSingularisInteractionSessionEvent Event) const;
 
 #pragma endregion
 

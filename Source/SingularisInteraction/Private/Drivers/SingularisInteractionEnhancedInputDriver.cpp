@@ -205,6 +205,8 @@ void USingularisInteractionEnhancedInputDriver::OnTargetChanged_Implementation(
 	RefreshInputMappingContext();
 }
 
+// ReSharper disable CppMemberFunctionMayBeConst
+
 void USingularisInteractionEnhancedInputDriver::HandleActionStarted(
 	const FInputActionValue& ActionValue,
 	const FGameplayTag PipelineTag
@@ -244,6 +246,8 @@ void USingularisInteractionEnhancedInputDriver::HandleActionValue(
 	// 2) 提交连续值意图
 	SubmitIntent(PipelineTag, SingularisInteraction_Intent_Value, Sample);
 }
+
+// ReSharper restore CppMemberFunctionMayBeConst
 
 void USingularisInteractionEnhancedInputDriver::SubmitIntent(
 	const FGameplayTag PipelineTag,
