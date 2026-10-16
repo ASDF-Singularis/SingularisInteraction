@@ -105,7 +105,7 @@ public:
 		EditDefaultsOnly,
 		BlueprintReadOnly,
 		Category = "引力奇点交互组件",
-		meta = (DisplayName = "交互管线集")
+		meta = (DisplayName = "交互管线集", TitleProperty = "PipelineTag")
 	)
 	TArray<FSingularisInteractionPipeline> InteractionPipelines{};
 
