@@ -339,7 +339,7 @@ private:
 	/** 广播本地会话流 */
 	void BroadcastInteractorSession(
 		USingularisInteractionComponent* Target,
-		const FGameplayTag& StrategyTag,
+		const FGameplayTag& ResponseTag,
 		const FGameplayTag& EventTag,
 		float Alpha
 	) const;

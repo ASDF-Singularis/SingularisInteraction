@@ -425,7 +425,7 @@ bool USingularisInteractorComponent::BeginMirror(const USingularisInteractionSes
 	MirrorContext.Avatar = DriveTarget->GetOwner();
 	MirrorContext.Target = DriveTarget->GetOwner();
 	MirrorContext.InteractionComponent = DriveTarget.Get();
-	MirrorContext.StrategyTag = DriveStrategyTag;
+	MirrorContext.ResponseTag = DriveStrategyTag;
 	MirrorContext.Elapsed = 0.0f;
 
 	// 3) 启动镜像会话（瞬时会话在此完成并结算）
@@ -459,7 +459,7 @@ void USingularisInteractorComponent::MirrorTick(const float DeltaTime)
 
 void USingularisInteractorComponent::BroadcastInteractorSession(
 	USingularisInteractionComponent* Target,
-	const FGameplayTag& StrategyTag,
+	const FGameplayTag& ResponseTag,
 	const FGameplayTag& EventTag,
 	const float Alpha
 ) const
@@ -473,7 +473,7 @@ void USingularisInteractorComponent::BroadcastInteractorSession(
 	Event.Context.Avatar = IsValid(Target) ? Target->GetOwner() : nullptr;
 	Event.Context.Target = Event.Context.Avatar;
 	Event.Context.InteractionComponent = Target;
-	Event.Context.StrategyTag = StrategyTag;
+	Event.Context.ResponseTag = ResponseTag;
 
 	// 2) 广播本地流
 	OnInteractorSessionEvent.Broadcast(Target, Event);

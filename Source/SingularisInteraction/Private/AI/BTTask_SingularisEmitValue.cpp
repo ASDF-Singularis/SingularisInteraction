@@ -168,7 +168,7 @@ void UBTTask_SingularisEmitValue::HandleInteractorSessionEvent(
 	// 1) 仅关注本任务会话（交互者与策略标签一致）
 	if (!ObservedInteractor.IsValid() || Event.Context.Interactor != ObservedInteractor->GetOwner())
 		return;
-	if (Event.Context.StrategyTag != StrategyTag)
+	if (Event.Context.ResponseTag != StrategyTag)
 		return;
 
 	// 2) 结算判据：达成为成功、中止为失败

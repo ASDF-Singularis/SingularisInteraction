@@ -95,7 +95,7 @@ void USingularisInteractionComponent::TickComponent(
 		}
 
 		Record.Elapsed += DeltaTime;
-		PendingDriveContexts.Add(BuildSessionContext(Interactor, Record.StrategyTag, Record.Elapsed));
+		PendingDriveContexts.Add(BuildSessionContext(Interactor, Record.ResponseTag, Record.Elapsed));
 	}
 
 	// 3) 第二遍：驱动会话推进（会话回调可能反向变更会话表，迭代的是上下文副本）
@@ -288,7 +288,7 @@ void USingularisInteractionComponent::ReceiveInteractionIntent(
 		return;
 
 	const FSingularisInteractionSessionRecord& Record = ActiveSessions[InteractorKey];
-	if (Record.StrategyTag != StrategyTag)
+	if (Record.ResponseTag != StrategyTag)
 		return;
 
 	if (!IsValid(Record.Session))
@@ -297,7 +297,7 @@ void USingularisInteractionComponent::ReceiveInteractionIntent(
 		return;
 	}
 
-	Record.Session->ReceiveIntent(BuildSessionContext(Record.Interactor, Record.StrategyTag, Record.Elapsed), Intent);
+	Record.Session->ReceiveIntent(BuildSessionContext(Record.Interactor, Record.ResponseTag, Record.Elapsed), Intent);
 }
 
 void USingularisInteractionComponent::RegisterInteractionMappings()
@@ -387,7 +387,7 @@ void USingularisInteractionComponent::BeginSession(AActor* Interactor, const FGa
 	// 4) 建立会话记录并启用时钟
 	FSingularisInteractionSessionRecord& Record = ActiveSessions.Add(InteractorKey);
 	Record.Interactor = InteractorKey;
-	Record.StrategyTag = StrategyTag;
+	Record.ResponseTag = StrategyTag;
 	Record.Session = SessionInstance;
 	Record.Elapsed = 0.0f;
 	RefreshSessionTick();
@@ -442,7 +442,7 @@ void USingularisInteractionComponent::SettleSession(const TWeakObjectPtr<AActor>
 
 	// 4) 驱动会话收尾
 	if (IsValid(Record.Session))
-		Record.Session->End(BuildSessionContext(Record.Interactor, Record.StrategyTag, Record.Elapsed));
+		Record.Session->End(BuildSessionContext(Record.Interactor, Record.ResponseTag, Record.Elapsed));
 
 	UE_LOG(
 		LogSingularisInteraction,
@@ -464,7 +464,7 @@ void USingularisInteractionComponent::DriveSessionEvent(
 	FSingularisInteractionSessionEvent Event;
 	Event.EventTag = EventTag;
 	Event.Alpha = Alpha;
-	Event.Context = BuildSessionContext(Record.Interactor, Record.StrategyTag, Record.Elapsed);
+	Event.Context = BuildSessionContext(Record.Interactor, Record.ResponseTag, Record.Elapsed);
 
 	// 2) 本地广播
 	OnInteractionSessionEvent.Broadcast(Event);
@@ -485,7 +485,7 @@ void USingularisInteractionComponent::DriveSessionResponses(const FSingularisInt
 	// 1) 层级匹配并逐管线按序驱动响应
 	for (const auto& [Tag, Pipeline] : InteractionStrategyPipelineMapping)
 	{
-		if (!Tag.MatchesTag(Event.Context.StrategyTag))
+		if (!Tag.MatchesTag(Event.Context.ResponseTag))
 			continue;
 
 		for (const auto& [Name, Description, Response] : Pipeline.Responses)
@@ -498,7 +498,7 @@ void USingularisInteractionComponent::DriveSessionResponses(const FSingularisInt
 
 FSingularisInteractionSessionContext USingularisInteractionComponent::BuildSessionContext(
 	const TWeakObjectPtr<AActor>& Interactor,
-	const FGameplayTag& StrategyTag,
+	const FGameplayTag& ResponseTag,
 	const float Elapsed
 )
 {
@@ -509,7 +509,7 @@ FSingularisInteractionSessionContext USingularisInteractionComponent::BuildSessi
 	Context.Avatar = GetOwner();
 	Context.Target = GetOwner();
 	Context.InteractionComponent = this;
-	Context.StrategyTag = StrategyTag;
+	Context.ResponseTag = ResponseTag;
 	Context.Elapsed = Elapsed;
 
 	return Context;

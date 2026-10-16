@@ -316,7 +316,7 @@ private:
 	/** 组装会话上下文 */
 	FSingularisInteractionSessionContext BuildSessionContext(
 		const TWeakObjectPtr<AActor>& Interactor,
-		const FGameplayTag& StrategyTag,
+		const FGameplayTag& ResponseTag,
 		float Elapsed
 	);
 
