@@ -40,11 +40,13 @@
 #include <Engine/Blueprint.h>
 #include <Kismet2/BlueprintEditorUtils.h>
 #include <Kismet2/CompilerResultsLog.h>
+#include <StructUtils/InstancedStruct.h>
 #include <UObject/Class.h>
 
 #include "Objects/SingularisInteractionResponse.h"
 #include "Styles/SingularisInteractionEditorStyle.h"
 #include "Types/SingularisInteractionSessionType.h"
+#include "Types/SingularisInteractionValueType.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_SingularisSessionEvent"
 
@@ -124,21 +126,33 @@ void UK2Node_SingularisSessionEvent::AllocateDefaultPins()
 {
 	Super::AllocateDefaultPins();
 
-	// 1) 隐藏委托输出引脚：框架按名直调本事件，节点只暴露「负载 + 配置 + 执行输出」
+	// 1) 隐藏委托输出引脚：框架按名直调本事件，节点只暴露「量值 + 瞬态负荷 + 配置 + 执行输出」
 	HideDelegateOutputPin();
 
-	// 2) 负载输出引脚：会话事件在分派帧内推送，展开期把本引脚的连线改接分派帧读取，
+	// 2) 负载输出引脚：量值与瞬态负荷在分派帧内推送，展开期把引脚的连线改接分派帧读取，
 	//    因此不参与事件签名（事件函数保持无参，框架可直调）；结构可拆分，字段经拆分引脚取用
+	UEdGraphPin* const ValuePin = CreatePin(
+		EGPD_Output,
+		UEdGraphSchema_K2::PC_Struct,
+		FSingularisInteractionValue::StaticStruct(),
+		GetValuePinName()
+	);
+	ValuePin->PinFriendlyName = LOCTEXT("ValuePin", "量值");
+	ValuePin->PinToolTip = LOCTEXT(
+		"ValuePinTip",
+		"本帧会话事件的量值：中性量值载体（布尔 / 一维 / 二维 / 三维）；可拆分取字段"
+	).ToString();
+
 	UEdGraphPin* const PayloadPin = CreatePin(
 		EGPD_Output,
 		UEdGraphSchema_K2::PC_Struct,
-		FSingularisInteractionSessionEvent::StaticStruct(),
+		FInstancedStruct::StaticStruct(),
 		GetPayloadPinName()
 	);
-	PayloadPin->PinFriendlyName = LOCTEXT("PayloadPin", "会话事件");
+	PayloadPin->PinFriendlyName = LOCTEXT("PayloadPin", "瞬态负荷");
 	PayloadPin->PinToolTip = LOCTEXT(
 		"PayloadPinTip",
-		"处理器收到的会话事件：事件标签、归一化量值、开放负载与会话上下文；可拆分取字段"
+		"本帧会话事件的瞬态负荷：结构类型由发射会话自定，可空，仅在分派帧内有效"
 	).ToString();
 
 	// 3) 订阅标签配置引脚：输入引脚不参与事件签名（编译器剔除全部 EGPD_Input），
@@ -223,14 +237,14 @@ FText UK2Node_SingularisSessionEvent::GetTooltipText() const
 {
 	return LOCTEXT(
 		"NodeTooltip",
-		"声明式会话事件处理器：无执行输入，直接从执行输出拉线写逻辑；负载输出引脚给出本次会话事件（可拆分取字段），在节点上选择订阅标签（限于事件域，层级匹配）即可，框架按标签直调本事件函数，无需任何额外入口"
+		"声明式会话事件处理器：无执行输入，直接从执行输出拉线写逻辑；量值与瞬态负荷输出引脚给出本帧负载（可拆分取字段，结构类型由发射会话自定），在节点上选择订阅标签（限于事件域，层级匹配）即可，框架按标签直调本事件函数，无需任何额外入口"
 	);
 }
 
 FText UK2Node_SingularisSessionEvent::GetKeywords() const
 {
 	// 检索词只影响菜单搜索命中，不参与任何语义
-	return LOCTEXT("NodeKeywords", "会话事件 事件负载 声明式 分派 响应 交互 SessionEvent Interaction Event");
+	return LOCTEXT("NodeKeywords", "会话事件 事件负载 量值 瞬态负荷 声明式 分派 响应 交互 SessionEvent Interaction Event");
 }
 
 FLinearColor UK2Node_SingularisSessionEvent::GetNodeTitleColor() const { return FLinearColor(0.03f, 0.14f, 0.24f); }
@@ -317,21 +331,29 @@ void UK2Node_SingularisSessionEvent::ExpandNode(FKismetCompilerContext& Compiler
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
 
-	// 1) 负载引脚未连线：无人消费本帧事件，无需接读取（拆分引脚的连线已由基类展开回本引脚）
-	UEdGraphPin* const PayloadPin = FindPin(GetPayloadPinName());
-	if (!PayloadPin || PayloadPin->LinkedTo.IsEmpty())
-		return;
+	// 负载不是事件签名参数：展开期把连线改接分派帧读取，读取结果即本帧推送的负载
+	// 1) 两路负载读取：量值与瞬态负荷各一路，各自对应响应侧的访问器
+	const TPair<FName, FName> PayloadReaders[] = {
+		{GetValuePinName(), GET_FUNCTION_NAME_CHECKED(USingularisInteractionResponse, GetCurrentValue)},
+		{GetPayloadPinName(), GET_FUNCTION_NAME_CHECKED(USingularisInteractionResponse, GetCurrentPayload)}
+	};
 
-	// 2) 负载不是事件签名参数：展开期把连线改接分派帧读取，读取结果即本帧推送的会话事件
-	UK2Node_CallFunction* const ReaderNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(
-		this,
-		SourceGraph
-	);
-	ReaderNode->FunctionReference.SetSelfMember(
-		GET_FUNCTION_NAME_CHECKED(USingularisInteractionResponse, GetCurrentSessionEvent)
-	);
-	ReaderNode->AllocateDefaultPins();
-	CompilerContext.MovePinLinksToIntermediate(*PayloadPin, *ReaderNode->GetReturnValuePin());
+	for (const auto& [PinName, ReaderFunction] : PayloadReaders)
+	{
+		// 2) 负载引脚未连线：无人消费本帧负载，无需接读取（拆分引脚的连线已由基类展开回本引脚）
+		UEdGraphPin* const PayloadPin = FindPin(PinName);
+		if (!PayloadPin || PayloadPin->LinkedTo.IsEmpty())
+			continue;
+
+		// 3) 展开为分派帧读取：连线改接读取节点的返回值引脚
+		UK2Node_CallFunction* const ReaderNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(
+			this,
+			SourceGraph
+		);
+		ReaderNode->FunctionReference.SetSelfMember(ReaderFunction);
+		ReaderNode->AllocateDefaultPins();
+		CompilerContext.MovePinLinksToIntermediate(*PayloadPin, *ReaderNode->GetReturnValuePin());
+	}
 }
 
 void UK2Node_SingularisSessionEvent::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const

@@ -41,7 +41,11 @@ void USingularisInteractionSessionPulse::Begin_Implementation(const FSingularisI
 	LastPulseElapsed = 0.0f;
 
 	// 2) 广播首声进度
-	EmitSessionEvent(SingularisInteraction_Event_Progress, static_cast<float>(PulseCounter) / PulseCount);
+	EmitSessionEvent(
+		SingularisInteraction_Event_Progress,
+		FSingularisInteractionValue(static_cast<float>(PulseCounter) / PulseCount),
+		FInstancedStruct()
+	);
 }
 
 void USingularisInteractionSessionPulse::ReceiveIntent_Implementation(
@@ -70,7 +74,11 @@ void USingularisInteractionSessionPulse::ReceiveIntent_Implementation(
 		return;
 	}
 
-	EmitSessionEvent(SingularisInteraction_Event_Progress, static_cast<float>(PulseCounter) / PulseCount);
+	EmitSessionEvent(
+		SingularisInteraction_Event_Progress,
+		FSingularisInteractionValue(static_cast<float>(PulseCounter) / PulseCount),
+		FInstancedStruct()
+	);
 }
 
 void USingularisInteractionSessionPulse::Tick_Implementation(

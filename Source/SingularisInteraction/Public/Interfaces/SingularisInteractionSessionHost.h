@@ -32,8 +32,10 @@
 
 #include <CoreMinimal.h>
 #include <GameplayTagContainer.h>
+#include <StructUtils/InstancedStruct.h>
 #include <UObject/Interface.h>
 
+#include "Types/SingularisInteractionValueType.h"
 #include "SingularisInteractionSessionHost.generated.h"
 
 class USingularisInteractionSession;
@@ -61,7 +63,8 @@ public:
 	 *
 	 * @param Session 发射事件的会话实例。
 	 * @param EventTag 事件标签。
-	 * @param Alpha 归一化量值 0..1。
+	 * @param Value 量值（中性量值载体）。
+	 * @param Payload 瞬态负荷（会话自定强类型结构，可空）。
 	 */
 	UFUNCTION(
 		BlueprintNativeEvent,
@@ -69,7 +72,12 @@ public:
 		Category = "引力奇点交互会话宿主接口",
 		meta = (DisplayName = "发射会话事件")
 	)
-	void HostEmitSessionEvent(USingularisInteractionSession* Session, const FGameplayTag& EventTag, float Alpha);
+	void HostEmitSessionEvent(
+		USingularisInteractionSession* Session,
+		const FGameplayTag& EventTag,
+		FSingularisInteractionValue Value,
+		const FInstancedStruct& Payload
+	);
 
 	/**
 	 * 会话完成会话。

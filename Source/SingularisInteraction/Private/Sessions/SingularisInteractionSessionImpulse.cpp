@@ -38,7 +38,7 @@ void USingularisInteractionSessionImpulse::Begin_Implementation(const FSingulari
 {
 	// 1) 会话建立即首次主张：首个脉冲入账
 	Impulse = FMath::Clamp(PulseStep, 0.0f, 1.0f);
-	EmitSessionEvent(SingularisInteraction_Event_Progress, Impulse);
+	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Impulse), FInstancedStruct());
 
 	if (Impulse >= 1.0f)
 		CompleteSession();
@@ -54,7 +54,7 @@ void USingularisInteractionSessionImpulse::ReceiveIntent_Implementation(
 		return;
 
 	Impulse = FMath::Clamp(Impulse + PulseStep, 0.0f, 1.0f);
-	EmitSessionEvent(SingularisInteraction_Event_Progress, Impulse);
+	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Impulse), FInstancedStruct());
 
 	if (Impulse >= 1.0f)
 		CompleteSession();
@@ -71,7 +71,7 @@ void USingularisInteractionSessionImpulse::Tick_Implementation(
 
 	// 2) 逐帧衰减并广播；归零按配置中止
 	Impulse = FMath::Clamp(Impulse - DecayRate * DeltaTime, 0.0f, 1.0f);
-	EmitSessionEvent(SingularisInteraction_Event_Progress, Impulse);
+	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Impulse), FInstancedStruct());
 
 	if (bCancelAtZero && Impulse <= 0.0f)
 		CancelSession();

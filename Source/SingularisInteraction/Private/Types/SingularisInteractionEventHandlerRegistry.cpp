@@ -41,7 +41,7 @@ FSingularisInteractionEventHandlerRegistry& FSingularisInteractionEventHandlerRe
 void FSingularisInteractionEventHandlerRegistry::RegisterHandler(
 	UClass* (*ResponseClassResolver)(),
 	FGameplayTag (*EventTagResolver)(),
-	void (USingularisInteractionResponse::*Handler)(const FSingularisInteractionSessionEvent&)
+	void (USingularisInteractionResponse::*Handler)(const FSingularisInteractionValue&, const FInstancedStruct&)
 )
 {
 	// 1) 零信任校验：解析器或处理器缺失的请求直接丢弃

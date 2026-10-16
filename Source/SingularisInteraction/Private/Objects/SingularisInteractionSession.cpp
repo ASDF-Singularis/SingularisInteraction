@@ -32,14 +32,18 @@
 
 #include "Interfaces/SingularisInteractionSessionHost.h"
 
-void USingularisInteractionSession::EmitSessionEvent(const FGameplayTag EventTag, const float Alpha)
+void USingularisInteractionSession::EmitSessionEvent(
+	const FGameplayTag EventTag,
+	FSingularisInteractionValue Value,
+	const FInstancedStruct& Payload
+)
 {
 	// 1) 宿主失效时发射通道静默关闭
 	UObject* const HostObject = SessionHostObject.Get();
 	if (!IsValid(HostObject)) return;
 
 	// 2) 经宿主接口契约路由
-	ISingularisInteractionSessionHost::Execute_HostEmitSessionEvent(HostObject, this, EventTag, Alpha);
+	ISingularisInteractionSessionHost::Execute_HostEmitSessionEvent(HostObject, this, EventTag, Value, Payload);
 }
 
 void USingularisInteractionSession::CompleteSession()

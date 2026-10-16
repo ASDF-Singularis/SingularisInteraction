@@ -97,7 +97,8 @@ void USingularisInteractorComponent::TickComponent(
 void USingularisInteractorComponent::HostEmitSessionEvent_Implementation(
 	USingularisInteractionSession* Session,
 	const FGameplayTag& EventTag,
-	const float Alpha
+	FSingularisInteractionValue Value,
+	const FInstancedStruct& Payload
 )
 {
 	// 1) 仅接受当前镜像实例（冲刷后的迟到发射静默吞并）
@@ -105,7 +106,7 @@ void USingularisInteractorComponent::HostEmitSessionEvent_Implementation(
 		return;
 
 	// 2) 连续量与领域事件：本地会话流全量广播
-	BroadcastInteractorSession(DriveTarget.Get(), DrivePipelineTag, EventTag, FMath::Clamp(Alpha, 0.0f, 1.0f));
+	BroadcastInteractorSession(DriveTarget.Get(), DrivePipelineTag, EventTag, Value, Payload);
 }
 
 void USingularisInteractorComponent::HostCompleteSession_Implementation(USingularisInteractionSession* Session)
@@ -186,7 +187,13 @@ bool USingularisInteractorComponent::SubmitInteractionIntent(
 			else
 			{
 				// 4.2) 广播 Begin 并派生镜像会话
-				BroadcastInteractorSession(Target, PipelineTag, SingularisInteraction_Event_Begin, 0.0f);
+				BroadcastInteractorSession(
+					Target,
+					PipelineTag,
+					SingularisInteraction_Event_Begin,
+					FSingularisInteractionValue(),
+					FInstancedStruct()
+				);
 				BeginMirror(SessionArchetype);
 			}
 		}
@@ -461,13 +468,15 @@ void USingularisInteractorComponent::BroadcastInteractorSession(
 	USingularisInteractionComponent* Target,
 	const FGameplayTag& PipelineTag,
 	const FGameplayTag& EventTag,
-	const float Alpha
+	FSingularisInteractionValue Value,
+	const FInstancedStruct& Payload
 ) const
 {
 	// 1) 组装会话事件（含身份上下文）
 	FSingularisInteractionSessionEvent Event;
 	Event.EventTag = EventTag;
-	Event.Alpha = Alpha;
+	Event.Value = Value;
+	Event.Payload = Payload;
 	Event.Context.Interactor = GetOwner();
 	Event.Context.Instigator = ResolveInstigator(GetOwner());
 	Event.Context.Avatar = IsValid(Target) ? Target->GetOwner() : nullptr;
@@ -495,7 +504,8 @@ void USingularisInteractorComponent::EndMirror(const bool bCompleted)
 		Target,
 		PipelineTag,
 		bCompleted ? SingularisInteraction_Event_Complete : SingularisInteraction_Event_Cancel,
-		bCompleted ? 1.0f : 0.0f
+		FSingularisInteractionValue(bCompleted ? 1.0f : 0.0f),
+		FInstancedStruct()
 	);
 }
 

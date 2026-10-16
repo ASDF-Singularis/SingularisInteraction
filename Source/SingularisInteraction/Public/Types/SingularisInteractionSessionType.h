@@ -32,7 +32,9 @@
 
 #include <CoreMinimal.h>
 #include <GameplayTagContainer.h>
+#include <StructUtils/InstancedStruct.h>
 
+#include "Types/SingularisInteractionValueType.h"
 #include "SingularisInteractionSessionType.generated.h"
 
 class AActor;
@@ -85,6 +87,7 @@ struct SINGULARISINTERACTION_API FSingularisInteractionSessionContext
  *
  * 逻辑 → 响应与表现的统一事件单元：核心事件（Begin / Progress / Complete / Cancel）
  * 由框架定义，领域事件经标签开放扩展；连续语义仅经 Event.Progress 流转。
+ * 负载为双通道：量值承载中性连续量，瞬态负荷承载会话自定的强类型结构。
  */
 USTRUCT(BlueprintType)
 struct SINGULARISINTERACTION_API FSingularisInteractionSessionEvent
@@ -95,13 +98,13 @@ struct SINGULARISINTERACTION_API FSingularisInteractionSessionEvent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag EventTag{};
 
-	/** 归一化量值 0..1 */
+	/** 量值：中性量值载体（布尔 / 一维 / 二维 / 三维），连续语义经此流转 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Alpha = 0.0f;
+	FSingularisInteractionValue Value{};
 
-	/** 附加语义标签（开放负载） */
+	/** 瞬态负荷：由会话发射时自定强类型结构，可空；仅本次广播与分派帧内有效 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTagContainer PayloadTags{};
+	FInstancedStruct Payload{};
 
 	/** 会话上下文 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

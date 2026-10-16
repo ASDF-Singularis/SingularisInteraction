@@ -69,7 +69,11 @@ void USingularisInteractionSessionHold::Tick_Implementation(
 	if (!bReleased)
 	{
 		InternalAlpha = FMath::Clamp(Context.Elapsed / FMath::Max(HoldDuration, 0.01f), 0.0f, 1.0f);
-		EmitSessionEvent(SingularisInteraction_Event_Progress, InternalAlpha);
+		EmitSessionEvent(
+			SingularisInteraction_Event_Progress,
+			FSingularisInteractionValue(InternalAlpha),
+			FInstancedStruct()
+		);
 
 		if (InternalAlpha >= 1.0f)
 			CompleteSession();
@@ -82,7 +86,11 @@ void USingularisInteractionSessionHold::Tick_Implementation(
 		return;
 
 	InternalAlpha = FMath::Max(InternalAlpha - DecayRate * DeltaTime, 0.0f);
-	EmitSessionEvent(SingularisInteraction_Event_Progress, InternalAlpha);
+	EmitSessionEvent(
+		SingularisInteraction_Event_Progress,
+		FSingularisInteractionValue(InternalAlpha),
+		FInstancedStruct()
+	);
 
 	if (InternalAlpha <= 0.0f)
 		CancelSession();

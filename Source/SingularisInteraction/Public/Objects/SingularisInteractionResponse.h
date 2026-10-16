@@ -42,6 +42,7 @@
  * 会话事件的副作用执行单元：以单一入口 `DispatchSessionEvent` 消费统一事件流，
  * 事件经声明式分派落地（C++ 用 `SINGULARIS_RESPONSE_EVENT` 宏、蓝图用事件图内的会话事件节点，
  * 框架直接调用被声明的处理器函数），核心事件之外经标签开放扩展；事件处理不存在其他入口。
+ * 处理器负载为量值与瞬态负荷双通道，不经框架公共事件结构传递，负载形态由发射会话自定。
  * 响应只消费会话语义，不感知事件如何产生；表现由框架事件流承担，响应永不自行组网。
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)
@@ -84,24 +85,37 @@ public:
 	 *
 	 * 进入分派帧写入当前会话事件，执行声明式登记的处理器（C++ 宏 + 蓝图节点），再退出分派帧。
 	 *
-	 * @param Event 会话事件，含事件标签、量值、开放负载与会话上下文。
+	 * @param Event 会话事件，含事件标签、量值、瞬态负荷与会话上下文。
 	 */
 	void DispatchSessionEvent(const FSingularisInteractionSessionEvent& Event);
 
 	/**
-	 * 取分派帧的当前会话事件。
+	 * 取分派帧的当前量值。
 	 *
-	 * 仅在 `DispatchSessionEvent` 期间有效；声明式处理器与蓝图节点经此读取负载，
-	 * 无需自行接收入参。
+	 * 仅在 `DispatchSessionEvent` 期间有效；声明式处理器与蓝图节点经此读取本帧量值。
 	 *
-	 * @return 当前会话事件；分派帧外为空事件。
+	 * @return 当前量值；分派帧外为零值。
 	 */
 	UFUNCTION(
 		BlueprintPure,
 		Category = "引力奇点交互响应|API",
-		meta = (DisplayName = "GetCurrentSessionEvent")
+		meta = (DisplayName = "GetCurrentValue")
 	)
-	FSingularisInteractionSessionEvent GetCurrentSessionEvent() const;
+	FSingularisInteractionValue GetCurrentValue() const;
+
+	/**
+	 * 取分派帧的当前瞬态负荷。
+	 *
+	 * 仅在 `DispatchSessionEvent` 期间有效；结构类型由发射会话自定，读取方按类型取用。
+	 *
+	 * @return 当前瞬态负荷；分派帧外为空结构。
+	 */
+	UFUNCTION(
+		BlueprintPure,
+		Category = "引力奇点交互响应|API",
+		meta = (DisplayName = "GetCurrentPayload")
+	)
+	FInstancedStruct GetCurrentPayload() const;
 
 	/**
 	 * 判定当前会话事件是否命中订阅标签（层级匹配）。

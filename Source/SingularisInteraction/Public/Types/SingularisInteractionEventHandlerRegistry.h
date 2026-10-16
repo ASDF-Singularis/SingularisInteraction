@@ -45,8 +45,11 @@ struct FSingularisInteractionEventHandler
 	/** 订阅的事件标签（解析后固化，层级匹配） */
 	FGameplayTag EventTag{};
 
-	/** 处理器成员函数指针 */
-	void (USingularisInteractionResponse::*Handler)(const FSingularisInteractionSessionEvent&) = nullptr;
+	/** 处理器成员函数指针（入参：量值、瞬态负荷） */
+	void (USingularisInteractionResponse::*Handler)(
+		const FSingularisInteractionValue&,
+		const FInstancedStruct&
+	) = nullptr;
 };
 
 /**
@@ -63,8 +66,11 @@ struct FSingularisInteractionHandlerRegistration
 	/** 订阅的事件标签解析器 */
 	FGameplayTag (*EventTagResolver)() = nullptr;
 
-	/** 处理器成员函数指针 */
-	void (USingularisInteractionResponse::*Handler)(const FSingularisInteractionSessionEvent&) = nullptr;
+	/** 处理器成员函数指针（入参：量值、瞬态负荷） */
+	void (USingularisInteractionResponse::*Handler)(
+		const FSingularisInteractionValue&,
+		const FInstancedStruct&
+	) = nullptr;
 };
 
 /**
@@ -95,7 +101,7 @@ public:
 	void RegisterHandler(
 		UClass* (*ResponseClassResolver)(),
 		FGameplayTag (*EventTagResolver)(),
-		void (USingularisInteractionResponse::*Handler)(const FSingularisInteractionSessionEvent&)
+		void (USingularisInteractionResponse::*Handler)(const FSingularisInteractionValue&, const FInstancedStruct&)
 	);
 
 	/**

@@ -189,7 +189,8 @@ public:
 	virtual void HostEmitSessionEvent_Implementation(
 		USingularisInteractionSession* Session,
 		const FGameplayTag& EventTag,
-		float Alpha
+		FSingularisInteractionValue Value,
+		const FInstancedStruct& Payload
 	) override;
 	virtual void HostCompleteSession_Implementation(USingularisInteractionSession* Session) override;
 	virtual void HostCancelSession_Implementation(USingularisInteractionSession* Session) override;
@@ -341,7 +342,8 @@ private:
 		USingularisInteractionComponent* Target,
 		const FGameplayTag& PipelineTag,
 		const FGameplayTag& EventTag,
-		float Alpha
+		FSingularisInteractionValue Value,
+		const FInstancedStruct& Payload
 	) const;
 
 	/** 镜像结算：冲刷镜像并广播结算事件 */

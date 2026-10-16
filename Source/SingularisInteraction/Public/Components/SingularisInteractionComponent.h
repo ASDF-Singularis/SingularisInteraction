@@ -212,7 +212,8 @@ public:
 	virtual void HostEmitSessionEvent_Implementation(
 		USingularisInteractionSession* Session,
 		const FGameplayTag& EventTag,
-		float Alpha
+		FSingularisInteractionValue Value,
+		const FInstancedStruct& Payload
 	) override;
 	virtual void HostCompleteSession_Implementation(USingularisInteractionSession* Session) override;
 	virtual void HostCancelSession_Implementation(USingularisInteractionSession* Session) override;
@@ -318,7 +319,8 @@ private:
 	void DriveSessionEvent(
 		const FSingularisInteractionSessionRecord& Record,
 		const FGameplayTag& EventTag,
-		float Alpha
+		const FSingularisInteractionValue& Value,
+		const FInstancedStruct& Payload
 	);
 
 	/** 驱动匹配管线响应消费会话事件 */

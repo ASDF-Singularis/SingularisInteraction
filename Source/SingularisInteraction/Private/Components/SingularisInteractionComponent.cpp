@@ -166,7 +166,8 @@ void USingularisInteractionComponent::TickComponent(
 void USingularisInteractionComponent::HostEmitSessionEvent_Implementation(
 	USingularisInteractionSession* Session,
 	const FGameplayTag& EventTag,
-	const float Alpha
+	FSingularisInteractionValue Value,
+	const FInstancedStruct& Payload
 )
 {
 	// 1) 定位会话归属会话（迟到发射静默吞并）
@@ -176,7 +177,7 @@ void USingularisInteractionComponent::HostEmitSessionEvent_Implementation(
 
 	// 2) 以记录快照驱动（广播与响应可能反向变更会话表）
 	const FSingularisInteractionSessionRecord Record = ActiveSessions[Interactor];
-	DriveSessionEvent(Record, EventTag, Alpha);
+	DriveSessionEvent(Record, EventTag, Value, Payload);
 }
 
 void USingularisInteractionComponent::HostCompleteSession_Implementation(USingularisInteractionSession* Session)
@@ -448,7 +449,12 @@ void USingularisInteractionComponent::BeginSession(AActor* Interactor, const FGa
 	const FSingularisInteractionSessionRecord RecordSnapshot = Record;
 
 	// 6) 广播与驱动 Begin 事件
-	DriveSessionEvent(RecordSnapshot, SingularisInteraction_Event_Begin, 0.0f);
+	DriveSessionEvent(
+		RecordSnapshot,
+		SingularisInteraction_Event_Begin,
+		FSingularisInteractionValue(),
+		FInstancedStruct()
+	);
 
 	UE_LOG(
 		LogSingularisInteraction,
@@ -489,7 +495,8 @@ void USingularisInteractionComponent::SettleSession(const TWeakObjectPtr<AActor>
 	DriveSessionEvent(
 		Record,
 		bCompleted ? SingularisInteraction_Event_Complete : SingularisInteraction_Event_Cancel,
-		bCompleted ? 1.0f : 0.0f
+		FSingularisInteractionValue(bCompleted ? 1.0f : 0.0f),
+		FInstancedStruct()
 	);
 
 	// 4) 驱动会话收尾
@@ -509,13 +516,15 @@ void USingularisInteractionComponent::SettleSession(const TWeakObjectPtr<AActor>
 void USingularisInteractionComponent::DriveSessionEvent(
 	const FSingularisInteractionSessionRecord& Record,
 	const FGameplayTag& EventTag,
-	const float Alpha
+	const FSingularisInteractionValue& Value,
+	const FInstancedStruct& Payload
 )
 {
 	// 1) 组装事件（快照驱动，不回读会话表）
 	FSingularisInteractionSessionEvent Event;
 	Event.EventTag = EventTag;
-	Event.Alpha = Alpha;
+	Event.Value = Value;
+	Event.Payload = Payload;
 	Event.Context = BuildSessionContext(Record.Interactor, Record.PipelineTag, Record.Elapsed);
 
 	// 2) 本地广播

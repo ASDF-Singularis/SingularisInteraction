@@ -63,7 +63,7 @@ void USingularisInteractionSessionAxis::ReceiveIntent_Implementation(
 
 	// 3) 广播进度，达到阈值即完成
 	const float Alpha = FMath::Clamp(AccumulatedValue / FMath::Max(Threshold, 0.01f), 0.0f, 1.0f);
-	EmitSessionEvent(SingularisInteraction_Event_Progress, Alpha);
+	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Alpha), FInstancedStruct());
 
 	if (Alpha >= 1.0f)
 		CompleteSession();

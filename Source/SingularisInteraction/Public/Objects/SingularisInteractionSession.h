@@ -65,16 +65,22 @@ public:
 	 * 发射会话事件。
 	 *
 	 * 核心事件之外经标签开放扩展；Event.Progress 为唯一连续事件，其余为离散事件。
+	 * 负载为双通道：量值承载中性连续量，瞬态负荷承载会话自定的强类型结构（可空）。
 	 *
 	 * @param EventTag 事件标签。
-	 * @param Alpha 归一化量值 0..1。
+	 * @param Value 量值（中性量值载体）。
+	 * @param Payload 瞬态负荷（会话自定强类型结构，可空）。
 	 */
 	UFUNCTION(
 		BlueprintCallable,
 		Category = "引力奇点交互会话|API",
 		meta = (DisplayName = "EmitSessionEvent")
 	)
-	void EmitSessionEvent(FGameplayTag EventTag, float Alpha);
+	void EmitSessionEvent(
+		FGameplayTag EventTag,
+		FSingularisInteractionValue Value,
+		const FInstancedStruct& Payload
+	);
 
 	/** 完成会话 */
 	UFUNCTION(

@@ -58,9 +58,16 @@ void USingularisInteractionResponse::DispatchSessionEvent(const FSingularisInter
 	CurrentSessionEvent = PreviousEvent;
 }
 
-FSingularisInteractionSessionEvent USingularisInteractionResponse::GetCurrentSessionEvent() const
+FSingularisInteractionValue USingularisInteractionResponse::GetCurrentValue() const
 {
-	return CurrentSessionEvent;
+	// 分派帧外返回零值：不向帧外调用方暴露残留负载
+	return CurrentSessionEvent.Value;
+}
+
+FInstancedStruct USingularisInteractionResponse::GetCurrentPayload() const
+{
+	// 分派帧外返回空结构：与量值同一约定
+	return CurrentSessionEvent.Payload;
 }
 
 bool USingularisInteractionResponse::MatchesCurrentSessionEvent(const FGameplayTag& EventTag) const
@@ -83,7 +90,7 @@ void USingularisInteractionResponse::DispatchDeclaredHandlers(const FSingularisI
 				if (!Entry.Handler || !Entry.EventTag.IsValid() || !Event.EventTag.MatchesTag(Entry.EventTag))
 					continue;
 
-				(this->*Entry.Handler)(Event);
+				(this->*Entry.Handler)(Event.Value, Event.Payload);
 			}
 		}
 

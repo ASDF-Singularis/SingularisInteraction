@@ -38,7 +38,7 @@ void USingularisInteractionSessionDrag::Begin_Implementation(const FSingularisIn
 {
 	// 1) 复位绝对进度并广播初始态
 	Progress = 0.0f;
-	EmitSessionEvent(SingularisInteraction_Event_Progress, Progress);
+	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Progress), FInstancedStruct());
 }
 
 void USingularisInteractionSessionDrag::ReceiveIntent_Implementation(
@@ -49,7 +49,7 @@ void USingularisInteractionSessionDrag::ReceiveIntent_Implementation(
 	// 1) 撤回：定格当前角度，并按配置达成
 	if (Intent.IntentTag == SingularisInteraction_Intent_Release)
 	{
-		EmitSessionEvent(SingularisInteraction_Event_Settle, Progress);
+		EmitSessionEvent(SingularisInteraction_Event_Settle, FSingularisInteractionValue(Progress), FInstancedStruct());
 
 		if (bCompleteOnRelease)
 			CompleteSession();
@@ -62,7 +62,7 @@ void USingularisInteractionSessionDrag::ReceiveIntent_Implementation(
 		return;
 
 	Progress = FMath::Clamp(Progress + Intent.Value.GetScalar() * Sensitivity, 0.0f, 1.0f);
-	EmitSessionEvent(SingularisInteraction_Event_Progress, Progress);
+	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Progress), FInstancedStruct());
 
 	// 3) 拖满即达成；拖回起点按配置中止
 	if (Progress >= 1.0f)
