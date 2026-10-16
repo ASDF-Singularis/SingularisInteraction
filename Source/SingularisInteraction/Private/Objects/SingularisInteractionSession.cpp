@@ -46,24 +46,24 @@ void USingularisInteractionSession::EmitSessionEvent(
 	ISingularisInteractionSessionHost::Execute_HostEmitSessionEvent(HostObject, this, EventTag, Value, Payload);
 }
 
-void USingularisInteractionSession::CompleteSession()
+void USingularisInteractionSession::CompleteSession(const FInstancedStruct& Payload)
 {
 	// 1) 宿主失效时发射通道静默关闭
 	UObject* const HostObject = SessionHostObject.Get();
 	if (!IsValid(HostObject)) return;
 
 	// 2) 经宿主接口契约路由
-	ISingularisInteractionSessionHost::Execute_HostCompleteSession(HostObject, this);
+	ISingularisInteractionSessionHost::Execute_HostCompleteSession(HostObject, this, Payload);
 }
 
-void USingularisInteractionSession::CancelSession()
+void USingularisInteractionSession::CancelSession(const FInstancedStruct& Payload)
 {
 	// 1) 宿主失效时发射通道静默关闭
 	UObject* const HostObject = SessionHostObject.Get();
 	if (!IsValid(HostObject)) return;
 
 	// 2) 经宿主接口契约路由
-	ISingularisInteractionSessionHost::Execute_HostCancelSession(HostObject, this);
+	ISingularisInteractionSessionHost::Execute_HostCancelSession(HostObject, this, Payload);
 }
 
 void USingularisInteractionSession::BindSessionHost(UObject* InSessionHostObject)

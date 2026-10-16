@@ -109,18 +109,24 @@ void USingularisInteractorComponent::HostEmitSessionEvent_Implementation(
 	BroadcastInteractorSession(DriveTarget.Get(), DrivePipelineTag, EventTag, Value, Payload);
 }
 
-void USingularisInteractorComponent::HostCompleteSession_Implementation(USingularisInteractionSession* Session)
+void USingularisInteractorComponent::HostCompleteSession_Implementation(
+	USingularisInteractionSession* Session,
+	const FInstancedStruct& Payload
+)
 {
 	// 1) 镜像达成：结算
 	if (bMirrorActive && Session == MirrorSession)
-		EndMirror(true);
+		EndMirror(true, Payload);
 }
 
-void USingularisInteractorComponent::HostCancelSession_Implementation(USingularisInteractionSession* Session)
+void USingularisInteractorComponent::HostCancelSession_Implementation(
+	USingularisInteractionSession* Session,
+	const FInstancedStruct& Payload
+)
 {
 	// 1) 镜像中止：结算
 	if (bMirrorActive && Session == MirrorSession)
-		EndMirror(false);
+		EndMirror(false, Payload);
 }
 
 void USingularisInteractorComponent::SetTarget(USingularisInteractionComponent* NewTarget)
@@ -488,7 +494,7 @@ void USingularisInteractorComponent::BroadcastInteractorSession(
 	OnInteractorSessionEvent.Broadcast(Target, Event);
 }
 
-void USingularisInteractorComponent::EndMirror(const bool bCompleted)
+void USingularisInteractorComponent::EndMirror(const bool bCompleted, const FInstancedStruct& Payload)
 {
 	// 1) 非镜像运行态静默吞并
 	if (!bMirrorActive)
@@ -505,7 +511,7 @@ void USingularisInteractorComponent::EndMirror(const bool bCompleted)
 		PipelineTag,
 		bCompleted ? SingularisInteraction_Event_Complete : SingularisInteraction_Event_Cancel,
 		FSingularisInteractionValue(bCompleted ? 1.0f : 0.0f),
-		FInstancedStruct()
+		Payload
 	);
 }
 

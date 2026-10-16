@@ -192,8 +192,14 @@ public:
 		FSingularisInteractionValue Value,
 		const FInstancedStruct& Payload
 	) override;
-	virtual void HostCompleteSession_Implementation(USingularisInteractionSession* Session) override;
-	virtual void HostCancelSession_Implementation(USingularisInteractionSession* Session) override;
+	virtual void HostCompleteSession_Implementation(
+		USingularisInteractionSession* Session,
+		const FInstancedStruct& Payload
+	) override;
+	virtual void HostCancelSession_Implementation(
+		USingularisInteractionSession* Session,
+		const FInstancedStruct& Payload
+	) override;
 
 #pragma endregion
 
@@ -346,8 +352,8 @@ private:
 		const FInstancedStruct& Payload
 	) const;
 
-	/** 镜像结算：冲刷镜像并广播结算事件 */
-	void EndMirror(bool bCompleted);
+	/** 镜像结算：冲刷镜像并广播结算事件（结算量值收敛为达成 1 / 中止 0） */
+	void EndMirror(bool bCompleted, const FInstancedStruct& Payload);
 
 	/** 冲刷驱动的全部镜像状态（会话终结 / 目标迁移 / 原型不可用） */
 	void FlushDrive();

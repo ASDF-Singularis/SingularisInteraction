@@ -215,8 +215,14 @@ public:
 		FSingularisInteractionValue Value,
 		const FInstancedStruct& Payload
 	) override;
-	virtual void HostCompleteSession_Implementation(USingularisInteractionSession* Session) override;
-	virtual void HostCancelSession_Implementation(USingularisInteractionSession* Session) override;
+	virtual void HostCompleteSession_Implementation(
+		USingularisInteractionSession* Session,
+		const FInstancedStruct& Payload
+	) override;
+	virtual void HostCancelSession_Implementation(
+		USingularisInteractionSession* Session,
+		const FInstancedStruct& Payload
+	) override;
 
 #pragma endregion
 
@@ -312,8 +318,8 @@ private:
 	/** 拒绝会话：广播取消反馈事件 */
 	void RejectSession(AActor* Interactor, const FGameplayTag& PipelineTag);
 
-	/** 结算会话：摘除记录、驱动结算事件与会话收尾，会话不存在时幂等返回 */
-	void SettleSession(const TWeakObjectPtr<AActor>& Interactor, bool bCompleted);
+	/** 结算会话：摘除记录、驱动结算事件与会话收尾，会话不存在时幂等返回；结算量值收敛为达成 1 / 中止 0 */
+	void SettleSession(const TWeakObjectPtr<AActor>& Interactor, bool bCompleted, const FInstancedStruct& Payload);
 
 	/** 驱动会话事件：本地广播、响应分发与全局观察 */
 	void DriveSessionEvent(

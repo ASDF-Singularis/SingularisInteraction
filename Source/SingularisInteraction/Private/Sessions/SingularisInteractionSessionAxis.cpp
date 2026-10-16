@@ -66,5 +66,5 @@ void USingularisInteractionSessionAxis::ReceiveIntent_Implementation(
 	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Alpha), FInstancedStruct());
 
 	if (Alpha >= 1.0f)
-		CompleteSession();
+		CompleteSession(FInstancedStruct());
 }

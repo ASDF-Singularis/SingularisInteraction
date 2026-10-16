@@ -60,7 +60,7 @@ void USingularisInteractionSessionPulse::ReceiveIntent_Implementation(
 	// 2) 窗口校验：自最近一次主张起算超时即中止
 	if (Context.Elapsed - LastPulseElapsed > PulseWindow)
 	{
-		CancelSession();
+		CancelSession(FInstancedStruct());
 		return;
 	}
 
@@ -70,7 +70,7 @@ void USingularisInteractionSessionPulse::ReceiveIntent_Implementation(
 
 	if (PulseCounter >= PulseCount)
 	{
-		CompleteSession();
+		CompleteSession(FInstancedStruct());
 		return;
 	}
 
@@ -88,5 +88,5 @@ void USingularisInteractionSessionPulse::Tick_Implementation(
 {
 	// 1) 窗口超时即中止
 	if (Context.Elapsed - LastPulseElapsed > PulseWindow)
-		CancelSession();
+		CancelSession(FInstancedStruct());
 }

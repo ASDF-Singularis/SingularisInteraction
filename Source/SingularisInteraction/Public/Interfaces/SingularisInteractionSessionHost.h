@@ -83,6 +83,7 @@ public:
 	 * 会话完成会话。
 	 *
 	 * @param Session 完成会话的会话实例。
+	 * @param Payload 结算瞬态负荷（会话自定强类型结构，可空）。
 	 */
 	UFUNCTION(
 		BlueprintNativeEvent,
@@ -90,12 +91,13 @@ public:
 		Category = "引力奇点交互会话宿主接口",
 		meta = (DisplayName = "完成会话")
 	)
-	void HostCompleteSession(USingularisInteractionSession* Session);
+	void HostCompleteSession(USingularisInteractionSession* Session, const FInstancedStruct& Payload);
 
 	/**
 	 * 会话取消会话。
 	 *
 	 * @param Session 取消会话的会话实例。
+	 * @param Payload 结算瞬态负荷（会话自定强类型结构，可空）。
 	 */
 	UFUNCTION(
 		BlueprintNativeEvent,
@@ -103,5 +105,5 @@ public:
 		Category = "引力奇点交互会话宿主接口",
 		meta = (DisplayName = "取消会话")
 	)
-	void HostCancelSession(USingularisInteractionSession* Session);
+	void HostCancelSession(USingularisInteractionSession* Session, const FInstancedStruct& Payload);
 };

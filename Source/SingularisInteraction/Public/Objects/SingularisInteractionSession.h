@@ -82,21 +82,33 @@ public:
 		const FInstancedStruct& Payload
 	);
 
-	/** 完成会话 */
+	/**
+	 * 完成会话。
+	 *
+	 * 达成事件收敛为 1，并下发给定瞬态负荷；无业务数据时传空结构。
+	 *
+	 * @param Payload 结算瞬态负荷（会话自定强类型结构，可空）。
+	 */
 	UFUNCTION(
 		BlueprintCallable,
 		Category = "引力奇点交互会话|API",
 		meta = (DisplayName = "CompleteSession")
 	)
-	void CompleteSession();
+	void CompleteSession(const FInstancedStruct& Payload);
 
-	/** 取消会话 */
+	/**
+	 * 取消会话。
+	 *
+	 * 中止事件归零，并下发给定瞬态负荷；无业务数据时传空结构。
+	 *
+	 * @param Payload 结算瞬态负荷（会话自定强类型结构，可空）。
+	 */
 	UFUNCTION(
 		BlueprintCallable,
 		Category = "引力奇点交互会话|API",
 		meta = (DisplayName = "CancelSession")
 	)
-	void CancelSession();
+	void CancelSession(const FInstancedStruct& Payload);
 
 	/**
 	 * 绑定会话宿主（框架装配，派生实例时调用）。

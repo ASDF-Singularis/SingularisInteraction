@@ -41,7 +41,7 @@ void USingularisInteractionSessionImpulse::Begin_Implementation(const FSingulari
 	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Impulse), FInstancedStruct());
 
 	if (Impulse >= 1.0f)
-		CompleteSession();
+		CompleteSession(FInstancedStruct());
 }
 
 void USingularisInteractionSessionImpulse::ReceiveIntent_Implementation(
@@ -57,7 +57,7 @@ void USingularisInteractionSessionImpulse::ReceiveIntent_Implementation(
 	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Impulse), FInstancedStruct());
 
 	if (Impulse >= 1.0f)
-		CompleteSession();
+		CompleteSession(FInstancedStruct());
 }
 
 void USingularisInteractionSessionImpulse::Tick_Implementation(
@@ -74,5 +74,5 @@ void USingularisInteractionSessionImpulse::Tick_Implementation(
 	EmitSessionEvent(SingularisInteraction_Event_Progress, FSingularisInteractionValue(Impulse), FInstancedStruct());
 
 	if (bCancelAtZero && Impulse <= 0.0f)
-		CancelSession();
+		CancelSession(FInstancedStruct());
 }

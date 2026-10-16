@@ -52,7 +52,7 @@ void USingularisInteractionSessionDrag::ReceiveIntent_Implementation(
 		EmitSessionEvent(SingularisInteraction_Event_Settle, FSingularisInteractionValue(Progress), FInstancedStruct());
 
 		if (bCompleteOnRelease)
-			CompleteSession();
+			CompleteSession(FInstancedStruct());
 
 		return;
 	}
@@ -67,10 +67,10 @@ void USingularisInteractionSessionDrag::ReceiveIntent_Implementation(
 	// 3) 拖满即达成；拖回起点按配置中止
 	if (Progress >= 1.0f)
 	{
-		CompleteSession();
+		CompleteSession(FInstancedStruct());
 		return;
 	}
 
 	if (bCancelAtZero && Progress <= 0.0f)
-		CancelSession();
+		CancelSession(FInstancedStruct());
 }

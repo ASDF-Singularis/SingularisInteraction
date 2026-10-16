@@ -160,7 +160,7 @@ void USingularisInteractionComponent::TickComponent(
 
 	// 4) 统一结算失效会话（幂等）
 	for (const TWeakObjectPtr<AActor>& Interactor : PendingCancelInteractors)
-		SettleSession(Interactor, false);
+		SettleSession(Interactor, false, FInstancedStruct());
 }
 
 void USingularisInteractionComponent::HostEmitSessionEvent_Implementation(
@@ -180,16 +180,22 @@ void USingularisInteractionComponent::HostEmitSessionEvent_Implementation(
 	DriveSessionEvent(Record, EventTag, Value, Payload);
 }
 
-void USingularisInteractionComponent::HostCompleteSession_Implementation(USingularisInteractionSession* Session)
+void USingularisInteractionComponent::HostCompleteSession_Implementation(
+	USingularisInteractionSession* Session,
+	const FInstancedStruct& Payload
+)
 {
 	// 1) 定位会话归属会话并结算（幂等）
-	SettleSession(FindSessionInteractor(Session), true);
+	SettleSession(FindSessionInteractor(Session), true, Payload);
 }
 
-void USingularisInteractionComponent::HostCancelSession_Implementation(USingularisInteractionSession* Session)
+void USingularisInteractionComponent::HostCancelSession_Implementation(
+	USingularisInteractionSession* Session,
+	const FInstancedStruct& Payload
+)
 {
 	// 1) 定位会话归属会话并结算（幂等）
-	SettleSession(FindSessionInteractor(Session), false);
+	SettleSession(FindSessionInteractor(Session), false, Payload);
 }
 
 void USingularisInteractionComponent::SetEnabled(const bool IsEnabled)
@@ -205,7 +211,7 @@ void USingularisInteractionComponent::SetEnabled(const bool IsEnabled)
 		TArray<TWeakObjectPtr<AActor>> Interactors;
 		ActiveSessions.GetKeys(Interactors);
 		for (const TWeakObjectPtr<AActor>& Interactor : Interactors)
-			SettleSession(Interactor, false);
+			SettleSession(Interactor, false, FInstancedStruct());
 	}
 
 	// 3) 广播状态变更事件
@@ -346,7 +352,7 @@ void USingularisInteractionComponent::ReceiveInteractionIntent(
 
 	if (!IsValid(Record.Session))
 	{
-		SettleSession(InteractorKey, false);
+		SettleSession(InteractorKey, false, FInstancedStruct());
 		return;
 	}
 
@@ -480,7 +486,11 @@ void USingularisInteractionComponent::RejectSession(AActor* Interactor, const FG
 	OnInteractionSessionEvent.Broadcast(Event);
 }
 
-void USingularisInteractionComponent::SettleSession(const TWeakObjectPtr<AActor>& Interactor, const bool bCompleted)
+void USingularisInteractionComponent::SettleSession(
+	const TWeakObjectPtr<AActor>& Interactor,
+	const bool bCompleted,
+	const FInstancedStruct& Payload
+)
 {
 	// 1) 幂等校验：会话不存在时直接返回
 	if (!ActiveSessions.Contains(Interactor))
@@ -496,7 +506,7 @@ void USingularisInteractionComponent::SettleSession(const TWeakObjectPtr<AActor>
 		Record,
 		bCompleted ? SingularisInteraction_Event_Complete : SingularisInteraction_Event_Cancel,
 		FSingularisInteractionValue(bCompleted ? 1.0f : 0.0f),
-		FInstancedStruct()
+		Payload
 	);
 
 	// 4) 驱动会话收尾

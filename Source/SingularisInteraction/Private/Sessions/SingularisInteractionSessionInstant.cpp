@@ -33,5 +33,5 @@
 void USingularisInteractionSessionInstant::Begin_Implementation(const FSingularisInteractionSessionContext& Context)
 {
 	// 1) 会话开始即达成
-	CompleteSession();
+	CompleteSession(FInstancedStruct());
 }

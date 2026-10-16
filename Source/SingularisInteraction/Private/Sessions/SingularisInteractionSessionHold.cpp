@@ -52,7 +52,7 @@ void USingularisInteractionSessionHold::ReceiveIntent_Implementation(
 	// 2) 撤回即取消：立即中止
 	if (bCancelOnRelease)
 	{
-		CancelSession();
+		CancelSession(FInstancedStruct());
 		return;
 	}
 
@@ -76,7 +76,7 @@ void USingularisInteractionSessionHold::Tick_Implementation(
 		);
 
 		if (InternalAlpha >= 1.0f)
-			CompleteSession();
+			CompleteSession(FInstancedStruct());
 
 		return;
 	}
@@ -93,5 +93,5 @@ void USingularisInteractionSessionHold::Tick_Implementation(
 	);
 
 	if (InternalAlpha <= 0.0f)
-		CancelSession();
+		CancelSession(FInstancedStruct());
 }
