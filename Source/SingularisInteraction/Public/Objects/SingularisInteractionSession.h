@@ -44,7 +44,7 @@
  * 会话推进规则的执行单元：消费宿主供给的意图与时钟，产出会话事件与结算。
  * 会话经管线以原型配置（Instanced 内联），会话建立时派生专属实例；
  * 会话端与镜像端运行同一实现，构成"唯一时序真相 + 本地零延迟会话流"。
- * 内建族（瞬时 / 长按 / 连点 / 轴积分）覆盖常见形态，子类扩展新形态无需改动框架。
+ * 内建族（瞬时 / 长按 / 维持 / 连点 / 轴积分 / 拖动 / 脉冲）覆盖常见形态，子类扩展新形态无需改动框架。
  */
 UCLASS(Abstract, Blueprintable, EditInlineNew, CollapseCategories)
 class SINGULARISINTERACTION_API USingularisInteractionSession : public UObject
